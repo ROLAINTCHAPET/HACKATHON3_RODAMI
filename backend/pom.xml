@@ -50,6 +50,16 @@
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
     </dependency>
+    <!-- Flyway — migrations SQL via JDBC (supporte dollar-quoted syntax) -->
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+      <version>10.10.0</version>
+    </dependency>
 
     <!-- ===== REDIS RÉACTIF ===== -->
     <dependency>

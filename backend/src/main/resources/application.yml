@@ -11,17 +11,26 @@ spring:
       initial-size: 5
       max-size: 20
 
-  # JDBC pour les migrations schema (Liquibase/init SQL)
+  # JDBC pour Flyway (migrations, supporte dollar-quoted SQL)
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:campuslink_db}
     username: ${DB_USER:campuslink}
     password: ${DB_PASS:campuslink_pass}
     driver-class-name: org.postgresql.Driver
 
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:campuslink_db}
+    user: ${DB_USER:campuslink}
+    password: ${DB_PASS:campuslink_pass}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    out-of-order: false
+
+  # Désactiver l'initialiseur SQL automatique (Flyway gère tout via JDBC)
   sql:
     init:
-      mode: always
-      schema-locations: classpath:schema.sql
+      enabled: false
 
   # ===== Redis réactif =====
   data:

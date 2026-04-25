@@ -20,6 +20,18 @@ public class JwtUtil {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
+    public String generateToken(Long userId, String email, String role) {
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .subject(userId.toString())
+                .claim("email", email)
+                .claim("role", role)
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + 86400000)) // 24h
+                .signWith(key)
+                .compact();
+    }
+
     public Claims parseToken(String token) {
         return Jwts.parser()
                 .verifyWith(key)

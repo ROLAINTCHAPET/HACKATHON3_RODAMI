@@ -49,20 +49,34 @@ public class UserService {
     // ----------------------------------------------------------------
     @Transactional
     public Mono<UserProfile> createUser(UserRequest request) {
+        String firebaseUid = (request.getFirebaseUid() == null || request.getFirebaseUid().isBlank()) ? null : request.getFirebaseUid();
+
         return userRepository.existsByEmail(request.getEmail())
                 .flatMap(exists -> {
                     if (exists) {
                         return Mono.error(new IllegalArgumentException("Email déjà utilisé : " + request.getEmail()));
                     }
+                    if (firebaseUid != null) {
+                        return userRepository.existsByFirebaseUid(firebaseUid)
+                                .flatMap(existsUid -> {
+                                    if (existsUid) {
+                                        return Mono.error(new IllegalArgumentException("Firebase UID déjà utilisé : " + firebaseUid));
+                                    }
+                                    return Mono.just(false);
+                                });
+                    }
+                    return Mono.just(false);
+                })
+                .then(Mono.defer(() -> {
                     User user = User.builder()
                             .nom(request.getNom())
                             .prenom(request.getPrenom())
                             .email(request.getEmail())
-                            .firebaseUid(request.getFirebaseUid())
+                            .firebaseUid(firebaseUid)
                             .role("USER")
                             .build();
                     return userRepository.save(user);
-                })
+                }))
                 .flatMap(savedUser -> {
                     ProfileContext ctx = ProfileContext.builder()
                             .userId(savedUser.getId())
@@ -71,23 +85,21 @@ public class UserService {
                             .statut(request.getStatut() != null ? request.getStatut() : "ETUDIANT")
                             .build();
 
-                    Mono<ProfileContext> saveCtx = profileContextRepository.save(ctx);
-
-                    Flux<Interest> saveInterests = Flux.empty();
-                    if (request.getInterests() != null && !request.getInterests().isEmpty()) {
-                        saveInterests = Flux.fromIterable(request.getInterests())
-                                .map(ir -> Interest.builder()
-                                        .userId(savedUser.getId())
-                                        .tag(ir.getTag().toLowerCase().trim())
-                                        .category(ir.getCategory())
-                                        .build())
-                                .flatMap(interestRepository::save);
-                    }
-
-                    return Mono.zip(
-                            saveCtx,
-                            saveInterests.collectList()
-                    ).map(tuple -> buildProfile(savedUser, tuple.getT1(), tuple.getT2(), 0L));
+                    return profileContextRepository.save(ctx)
+                            .then(Mono.defer(() -> {
+                                if (request.getInterests() != null && !request.getInterests().isEmpty()) {
+                                    return Flux.fromIterable(request.getInterests())
+                                            .map(ir -> Interest.builder()
+                                                    .userId(savedUser.getId())
+                                                    .tag(ir.getTag().toLowerCase().trim())
+                                                    .category(ir.getCategory())
+                                                    .build())
+                                            .flatMap(interestRepository::save)
+                                            .collectList();
+                                }
+                                return Mono.just(List.<Interest>of());
+                            }))
+                            .map(interests -> buildProfile(savedUser, ctx, interests, 0L));
                 });
     }
 
