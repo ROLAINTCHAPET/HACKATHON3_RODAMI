@@ -4,21 +4,32 @@
 -- ============================================================
 
 -- ===== TYPES ENUM =====
-DO $$ BEGIN
-  CREATE TYPE user_role AS ENUM ('ADMIN', 'BDE', 'USER');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- Utilisation de guillemets simples pour compatibilité R2DBC
+DO 'BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = ''user_role'') THEN
+    CREATE TYPE user_role AS ENUM (''ADMIN'', ''BDE'', ''USER'');
+  END IF;
+END';
 
-DO $$ BEGIN
-  CREATE TYPE connection_status AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO 'BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = ''connection_status'') THEN
+    CREATE TYPE connection_status AS ENUM (''PENDING'', ''ACCEPTED'', ''BLOCKED'');
+  END IF;
+END';
 
-DO $$ BEGIN
-  CREATE TYPE event_status AS ENUM ('DRAFT', 'PUBLISHED', 'CANCELLED', 'PAST');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO 'BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = ''event_status'') THEN
+    CREATE TYPE event_status AS ENUM (''DRAFT'', ''PUBLISHED'', ''CANCELLED'', ''PAST'');
+  END IF;
+END';
 
-DO $$ BEGIN
-  CREATE TYPE notification_type AS ENUM ('EVENT', 'CONNECTION', 'PUSH', 'SYSTEM');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO 'BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = ''notification_type'') THEN
+    CREATE TYPE notification_type AS ENUM (''EVENT'', ''CONNECTION'', ''PUSH'', ''SYSTEM'');
+  END IF;
+END';
+
+
 
 -- ============================================================
 -- MODULE : UTILISATEURS (partagé)
@@ -29,20 +40,31 @@ CREATE TABLE IF NOT EXISTS users (
   nom           VARCHAR(100) NOT NULL,
   prenom        VARCHAR(100) NOT NULL,
   email         VARCHAR(255) NOT NULL UNIQUE,
-  role          user_role    NOT NULL DEFAULT 'USER',
+  password_hash VARCHAR(255),
+  role          VARCHAR(50)  NOT NULL DEFAULT 'USER',
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 -- Profil contextuel (couche académique)
 CREATE TABLE IF NOT EXISTS profile_contexts (
-  id            BIGSERIAL PRIMARY KEY,
-  user_id       BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  filiere       VARCHAR(150),
-  annee         SMALLINT     CHECK (annee BETWEEN 1 AND 8),
-  statut        VARCHAR(50)  DEFAULT 'ETUDIANT',  -- ETUDIANT | ENSEIGNANT | ADMINISTRATION
-  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  UNIQUE(user_id)
+  id              BIGSERIAL PRIMARY KEY,
+  user_id         BIGINT      NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  filiere         VARCHAR(200),
+  annee           SMALLINT,     -- 1, 2, 3, 4, 5
+  statut          VARCHAR(50)  DEFAULT 'ETUDIANT',
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Gestion des associations (RF-19)
+CREATE TABLE IF NOT EXISTS associations (
+  id              BIGSERIAL PRIMARY KEY,
+  nom             VARCHAR(200) NOT NULL,
+  description     TEXT,
+  responsable_id  BIGINT       NOT NULL REFERENCES users(id),
+  status          VARCHAR(50)  NOT NULL DEFAULT 'PENDING',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
@@ -59,20 +81,20 @@ CREATE TABLE IF NOT EXISTS interests (
 
 CREATE TABLE IF NOT EXISTS connections (
   id              BIGSERIAL PRIMARY KEY,
-  user_id_1       BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  user_id_2       BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  requester_id    BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  receiver_id     BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   status          connection_status NOT NULL DEFAULT 'PENDING',
   source_event_id BIGINT,           -- lien vers l'événement déclencheur
   created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-  CHECK (user_id_1 <> user_id_2),
-  UNIQUE(user_id_1, user_id_2)
+  CHECK (requester_id <> receiver_id),
+  UNIQUE(requester_id, receiver_id)
 );
 
 -- Index pour les recommandations
 CREATE INDEX IF NOT EXISTS idx_interests_user ON interests(user_id);
 CREATE INDEX IF NOT EXISTS idx_interests_tag  ON interests(tag);
-CREATE INDEX IF NOT EXISTS idx_connections_users ON connections(user_id_1, user_id_2);
+CREATE INDEX IF NOT EXISTS idx_connections_users ON connections(requester_id, receiver_id);
 
 -- ============================================================
 -- MODULE 2 — GESTION DES ÉVÉNEMENTS (équipe RODAMI)
@@ -93,6 +115,7 @@ CREATE TABLE IF NOT EXISTS events (
   lieu            VARCHAR(255),
   category_id     BIGINT         REFERENCES event_categories(id),
   organisateur_id BIGINT         NOT NULL REFERENCES users(id),
+  association_id  BIGINT         REFERENCES associations(id),
   status          event_status   NOT NULL DEFAULT 'DRAFT',
   max_participants INT,
   created_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
@@ -107,10 +130,12 @@ CREATE TABLE IF NOT EXISTS event_registrations (
   UNIQUE(event_id, user_id)
 );
 
--- Lien connexion ↔ événement
-ALTER TABLE connections
-  ADD CONSTRAINT fk_connection_event
-  FOREIGN KEY (source_event_id) REFERENCES events(id) ON DELETE SET NULL;
+-- Lien connexion ↔ événement (Sécurisé)
+DO 'BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = ''fk_connection_event'') THEN
+    ALTER TABLE connections ADD CONSTRAINT fk_connection_event FOREIGN KEY (source_event_id) REFERENCES events(id) ON DELETE SET NULL;
+  END IF;
+END';
 
 CREATE INDEX IF NOT EXISTS idx_events_date     ON events(date_debut);
 CREATE INDEX IF NOT EXISTS idx_events_category ON events(category_id);
@@ -126,16 +151,6 @@ CREATE TABLE IF NOT EXISTS governance_rules (
   is_fixed      BOOLEAN      NOT NULL DEFAULT FALSE,  -- règles Admin non modifiables
   set_by_role   user_role    NOT NULL DEFAULT 'BDE',
   updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id          BIGSERIAL PRIMARY KEY,
-  actor_id    BIGINT      REFERENCES users(id),
-  action      VARCHAR(200) NOT NULL,
-  entity_type VARCHAR(100),
-  entity_id   BIGINT,
-  details     JSONB,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
@@ -156,6 +171,28 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
   ON notifications(user_id, is_read) WHERE is_read = FALSE;
 
 -- ============================================================
+-- MODULE 1 — CATALOGUE D'INTÉRÊTS (tags prédéfinis)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS interest_catalog (
+  id            BIGSERIAL PRIMARY KEY,
+  tag           VARCHAR(100) NOT NULL UNIQUE,
+  category      VARCHAR(100) NOT NULL,
+  emoji         VARCHAR(10),
+  display_order SMALLINT     NOT NULL DEFAULT 0
+);
+
+-- Traçabilité et Audit (RF-18)
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id          BIGSERIAL PRIMARY KEY,
+  actor_id    BIGINT      REFERENCES users(id),
+  action      VARCHAR(200) NOT NULL,
+  entity_type VARCHAR(100),
+  entity_id   BIGINT,
+  details     TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
 -- Données initiales
 -- ============================================================
 INSERT INTO event_categories (nom, priorite) VALUES
@@ -170,5 +207,47 @@ INSERT INTO governance_rules (rule_key, rule_value, is_fixed, set_by_role) VALUE
   ('institutional.message.priority', 'true',   TRUE,  'ADMIN'),
   ('push.frequency.per.day',         '3',       FALSE, 'BDE'),
   ('push.enabled',                   'true',    FALSE, 'BDE'),
-  ('cold_start.enabled',             'true',    TRUE,  'ADMIN')
+  ('cold_start.enabled',             'true',    TRUE,  'ADMIN'),
+  ('algo.highlight.category',        'Sport',   FALSE, 'BDE'), -- RF-16 : Priorité ajustable
+  ('matching.max_suggestions',       '10',      TRUE,  'ADMIN') -- RF-17 : Règle figée
 ON CONFLICT (rule_key) DO NOTHING;
+
+-- ===== Catalogue d'intérêts prédéfinis (5 catégories) =====
+INSERT INTO interest_catalog (tag, category, emoji, display_order) VALUES
+  -- 🏀 Sport
+  ('Football',    'Sport', '⚽', 1),
+  ('Basketball',  'Sport', '🏀', 2),
+  ('Tennis',      'Sport', '🎾', 3),
+  ('Natation',    'Sport', '🏊', 4),
+  ('Escalade',    'Sport', '🧗', 5),
+  ('Yoga',        'Sport', '🧘', 6),
+  ('Running',     'Sport', '🏃', 7),
+  -- 🎵 Culture
+  ('Musique',     'Culture', '🎵', 10),
+  ('Théâtre',     'Culture', '🎭', 11),
+  ('Cinéma',      'Culture', '🎬', 12),
+  ('Photographie','Culture', '📷', 13),
+  ('Danse',       'Culture', '💃', 14),
+  ('Lecture',     'Culture', '📚', 15),
+  -- 💻 Tech
+  ('Programmation','Tech', '💻', 20),
+  ('Intelligence Artificielle','Tech', '🤖', 21),
+  ('Cybersécurité','Tech', '🔒', 22),
+  ('Robotique',   'Tech', '🦾', 23),
+  ('Data Science', 'Tech', '📊', 24),
+  ('Web Design',  'Tech', '🎨', 25),
+  -- 📚 Académique
+  ('Mathématiques','Académique', '🔢', 30),
+  ('Physique',    'Académique', '⚛️', 31),
+  ('Droit',       'Académique', '⚖️', 32),
+  ('Médecine',    'Académique', '🩺', 33),
+  ('Langues',     'Académique', '🌍', 34),
+  ('Économie',    'Académique', '📈', 35),
+  -- 🎉 Social
+  ('Soirées',     'Social', '🎉', 40),
+  ('Voyages',     'Social', '✈️', 41),
+  ('Bénévolat',   'Social', '🤝', 42),
+  ('Cuisine',     'Social', '🍳', 43),
+  ('Jeux de société','Social', '🎲', 44),
+  ('Gaming',      'Social', '🎮', 45)
+ON CONFLICT (tag) DO NOTHING;

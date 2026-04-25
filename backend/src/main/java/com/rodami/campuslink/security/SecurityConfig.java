@@ -31,16 +31,22 @@ public class SecurityConfig {
             .authorizeExchange(ex -> ex
                 // Actuator public
                 .pathMatchers("/actuator/**").permitAll()
+                // Swagger UI & OpenAPI
+                .pathMatchers("/webjars/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Auth publique
                 .pathMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
+                // Onboarding public (inscription + profil en un flow)
+                .pathMatchers(HttpMethod.POST, "/api/profiles/onboard").permitAll()
+                // Catalogue d'intérêts public (nécessaire pour l'onboarding)
+                .pathMatchers(HttpMethod.GET, "/api/interests/catalog").permitAll()
                 // Lecture événements publique
                 .pathMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                 // Création/modification événements — BDE ou Admin
                 .pathMatchers(HttpMethod.POST, "/api/events/**").hasAnyRole("BDE", "ADMIN")
                 .pathMatchers(HttpMethod.PUT,  "/api/events/**").hasAnyRole("BDE", "ADMIN")
                 .pathMatchers(HttpMethod.DELETE,"/api/events/**").hasAnyRole("BDE", "ADMIN")
-                // Gouvernance — Admin only
-                .pathMatchers("/api/governance/**").hasRole("ADMIN")
+                // Gouvernance — Admin ou BDE
+                .pathMatchers("/api/governance/**").hasAnyRole("BDE", "ADMIN")
                 // Tout le reste authentifié
                 .anyExchange().authenticated()
             )
