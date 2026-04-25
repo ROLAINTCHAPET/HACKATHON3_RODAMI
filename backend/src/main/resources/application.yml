@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: campuslink-backend
+
+  # ===== R2DBC — PostgreSQL réactif =====
+  r2dbc:
+    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:campuslink_db}
+    username: ${DB_USER:campuslink}
+    password: ${DB_PASS:campuslink_pass}
+    pool:
+      initial-size: 5
+      max-size: 20
+
+  # JDBC pour les migrations schema (Liquibase/init SQL)
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:campuslink_db}
+    username: ${DB_USER:campuslink}
+    password: ${DB_PASS:campuslink_pass}
+    driver-class-name: org.postgresql.Driver
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+  # ===== Redis réactif =====
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+# ===== Serveur WebFlux (Netty) =====
+server:
+  port: 8080
+
+# ===== Actuator =====
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# ===== Logging =====
+logging:
+  level:
+    root: INFO
+    com.rodami.campuslink: DEBUG
+    org.springframework.r2dbc: DEBUG
+
+# ===== App custom =====
+campuslink:
+  jwt:
+    secret: ${JWT_SECRET:changeme_very_long_secret_key_for_dev_only}
+    expiration-ms: 86400000   # 24h
+  recommendations:
+    pull-max-results: 20
+    push-max-results: 10
+    push-min-common-interests: 0   # exclusion des intérêts déjà partagés

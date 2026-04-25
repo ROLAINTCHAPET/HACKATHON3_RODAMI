@@ -1,0 +1,86 @@
+version: '3.9'
+
+networks:
+  campuslink-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+
+services:
+
+  # ============================================================
+  # PostgreSQL 15
+  # ============================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: campuslink-postgres
+    restart: unless-stopped
+    networks: [campuslink-net]
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-campuslink_db}
+      POSTGRES_USER:     ${DB_USER:-campuslink}
+      POSTGRES_PASSWORD: ${DB_PASS:-campuslink_pass}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-campuslink} -d ${DB_NAME:-campuslink_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Redis 7 (réactif via Lettuce)
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: campuslink-redis
+    restart: unless-stopped
+    networks: [campuslink-net]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================
+  # Backend Spring Boot WebFlux (Netty)
+  # ============================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: campuslink-backend
+    restart: unless-stopped
+    networks: [campuslink-net]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST:    postgres
+      DB_PORT:    5432
+      DB_NAME:    ${DB_NAME:-campuslink_db}
+      DB_USER:    ${DB_USER:-campuslink}
+      DB_PASS:    ${DB_PASS:-campuslink_pass}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-changeme_very_long_secret_key_must_be_at_least_256_bits}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
