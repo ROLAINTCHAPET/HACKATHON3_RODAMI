@@ -4,7 +4,7 @@
 BASE_URL="http://localhost:8080/api"
 echo "🚀 Démarrage du test TWIST 09 (Logique système respectée)..."
 
-# Génération d'un ID unique pour cette session de test
+#  Génération d'un ID unique pour cette session de test
 RID=$RANDOM
 
 # 1. Inscription et Login
