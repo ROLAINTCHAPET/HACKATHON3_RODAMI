@@ -4,7 +4,7 @@ spring:
 
   # ===== R2DBC — PostgreSQL réactif =====
   r2dbc:
-    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:campuslink_db}}
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:campuslink_db}?sslMode=require}
     username: ${DB_USER:campuslink}
     password: ${DB_PASS:campuslink_pass}
     pool:
@@ -13,7 +13,7 @@ spring:
 
   # JDBC pour les migrations schema (Liquibase/init SQL)
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:campuslink_db}}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:campuslink_db}?ssl=true}
     username: ${DB_USER:campuslink}
     password: ${DB_PASS:campuslink_pass}
     driver-class-name: org.postgresql.Driver
