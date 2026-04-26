@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
+import com.rodami.campuslink.profile.service.ColdStartService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -34,6 +35,7 @@ public class RecommendationService {
     private final com.rodami.campuslink.profile.repository.ProfileContextRepository profileContextRepository;
     private final InterestRepository interestRepository;
     private final UserService userService;
+    private final ColdStartService coldStartService;
     private final ReactiveRedisTemplate<String, String> redisTemplate;
 
     @Value("${campuslink.recommendations.pull-max-results:20}")
@@ -62,7 +64,21 @@ public class RecommendationService {
                                 log.info("[TWIST 04] Utilisateur navetteur détecté, priorisation des profils compatibles temps court");
                             }
                             return getCachedUserIds(cacheKey)
-                                    .switchIfEmpty(computeAndCachePullIds(userId, cacheKey));
+                                    .switchIfEmpty(Flux.defer(() -> computeAndCachePullIds(userId, cacheKey)))
+                                    .collectList()
+                                    .flatMapMany(pullIds -> {
+                                        if (pullIds.size() < 3) {
+                                            log.info("[TWIST 06] Profil peu connecté ou sans intérêts communs, injection de suggestions générales (safety net)");
+                                            return Flux.fromIterable(pullIds)
+                                                    .concatWith(
+                                                        coldStartService.getPopularTags(5)
+                                                            .flatMap(tag -> interestRepository.findRecommendedUserIdsByTag(tag, userId, 5))
+                                                    )
+                                                    .distinct()
+                                                    .take(pullMaxResults);
+                                        }
+                                        return Flux.fromIterable(pullIds);
+                                    });
                         })
                 )
                 .flatMap(userService::getProfile)
