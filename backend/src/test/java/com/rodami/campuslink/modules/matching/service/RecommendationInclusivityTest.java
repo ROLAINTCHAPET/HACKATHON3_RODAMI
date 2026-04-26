@@ -40,6 +40,9 @@ class RecommendationInclusivityTest {
     private ColdStartService coldStartService;
 
     @Mock
+    private SemesterService semesterService;
+
+    @Mock
     private ReactiveRedisTemplate<String, String> redisTemplate;
 
     @Mock
@@ -54,6 +57,8 @@ class RecommendationInclusivityTest {
         when(redisTemplate.opsForList()).thenReturn(listOperations);
         // Manual injection of @Value fields
         ReflectionTestUtils.setField(recommendationService, "pullMaxResults", 20);
+        // Default semester
+        when(semesterService.getCurrentSemesterId()).thenReturn(Mono.just("1"));
     }
 
     @Test

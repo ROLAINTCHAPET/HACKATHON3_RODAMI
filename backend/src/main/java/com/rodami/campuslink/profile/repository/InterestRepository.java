@@ -93,7 +93,7 @@ public interface InterestRepository extends ReactiveCrudRepository<Interest, Lon
               WHERE (requester_id = :userId OR receiver_id = :userId)
           )
         /* TWIST 06 : Boost léger (x1.5) pour les profils ayant peu de connexions (<= 1) 
-           pour favoriser l'inclusion systémique sans stigmatisation. */
+           pour favoriser une inclusion systémique sans stigmatisation. */
         ORDER BY (CASE WHEN COALESCE(conn_counts.c_count, 0) <= 1 THEN 1.5 ELSE 1.0 END) * RANDOM() DESC
         LIMIT :maxResults
         """)

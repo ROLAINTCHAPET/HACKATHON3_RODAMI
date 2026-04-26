@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS profile_contexts (
   user_id         BIGINT      NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   filiere         VARCHAR(200),
   annee           SMALLINT,     -- 1, 2, 3, 4, 5
+  semester        SMALLINT     DEFAULT 1,  -- TWIST 07 : Bascule globale
+  rythme          VARCHAR(100) DEFAULT 'COURS', -- COURS, PROJET, STAGE
+  principal_location VARCHAR(255), -- Bâtiment principal (stable par semestre)
   statut          VARCHAR(50)  DEFAULT 'ETUDIANT',
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -209,7 +212,8 @@ INSERT INTO governance_rules (rule_key, rule_value, is_fixed, set_by_role) VALUE
   ('push.enabled',                   'true',    FALSE, 'BDE'),
   ('cold_start.enabled',             'true',    TRUE,  'ADMIN'),
   ('algo.highlight.category',        'Sport',   FALSE, 'BDE'), -- RF-16 : Priorité ajustable
-  ('matching.max_suggestions',       '10',      TRUE,  'ADMIN') -- RF-17 : Règle figée
+  ('matching.max_suggestions',       '10',      TRUE,  'ADMIN'), -- RF-17 : Règle figée
+  ('academic.current_semester',      '1',       FALSE, 'ADMIN') -- TWIST 07 : Pilotage global
 ON CONFLICT (rule_key) DO NOTHING;
 
 -- ===== Catalogue d'intérêts prédéfinis (5 catégories) =====
