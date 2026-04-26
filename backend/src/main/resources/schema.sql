@@ -7,7 +7,7 @@
 -- Utilisation de guillemets simples pour compatibilité R2DBC
 DO 'BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = ''user_role'') THEN
-    CREATE TYPE user_role AS ENUM (''ADMIN'', ''BDE'', ''USER'');
+    CREATE TYPE user_role AS ENUM (''ADMIN'', ''BDE'', ''USER'', ''GUEST'');
   END IF;
 END';
 
@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS profile_contexts (
   user_id         BIGINT      NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   filiere         VARCHAR(200),
   annee           SMALLINT,     -- 1, 2, 3, 4, 5
+  semester        SMALLINT     DEFAULT 1,  -- TWIST 07 : Bascule globale
+  rythme          VARCHAR(100) DEFAULT 'COURS', -- COURS, PROJET, STAGE
+  principal_location VARCHAR(255), -- Bâtiment principal (stable par semestre)
   statut          VARCHAR(50)  DEFAULT 'ETUDIANT',
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -59,42 +62,13 @@ CREATE TABLE IF NOT EXISTS profile_contexts (
 -- Gestion des associations (RF-19)
 CREATE TABLE IF NOT EXISTS associations (
   id              BIGSERIAL PRIMARY KEY,
-  nom             VARCHAR(200) NOT NULL,
+  nom             VARCHAR(200) NOT NULL UNIQUE,
   description     TEXT,
   responsable_id  BIGINT       NOT NULL REFERENCES users(id),
   status          VARCHAR(50)  NOT NULL DEFAULT 'PENDING',
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
--- ============================================================
--- MODULE 1 — MISE EN RELATION (équipe RODAMI)
--- ============================================================
-CREATE TABLE IF NOT EXISTS interests (
-  id            BIGSERIAL PRIMARY KEY,
-  user_id       BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  tag           VARCHAR(100) NOT NULL,
-  category      VARCHAR(100),
-  created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  UNIQUE(user_id, tag)
-);
-
-CREATE TABLE IF NOT EXISTS connections (
-  id              BIGSERIAL PRIMARY KEY,
-  requester_id    BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  receiver_id     BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  status          connection_status NOT NULL DEFAULT 'PENDING',
-  source_event_id BIGINT,           -- lien vers l'événement déclencheur
-  created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-  updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
-  CHECK (requester_id <> receiver_id),
-  UNIQUE(requester_id, receiver_id)
-);
-
--- Index pour les recommandations
-CREATE INDEX IF NOT EXISTS idx_interests_user ON interests(user_id);
-CREATE INDEX IF NOT EXISTS idx_interests_tag  ON interests(tag);
-CREATE INDEX IF NOT EXISTS idx_connections_users ON connections(requester_id, receiver_id);
 
 -- ============================================================
 -- MODULE 2 — GESTION DES ÉVÉNEMENTS (équipe RODAMI)
@@ -116,19 +90,78 @@ CREATE TABLE IF NOT EXISTS events (
   category_id     BIGINT         REFERENCES event_categories(id),
   organisateur_id BIGINT         NOT NULL REFERENCES users(id),
   association_id  BIGINT         REFERENCES associations(id),
-  status          event_status   NOT NULL DEFAULT 'DRAFT',
+  status          VARCHAR(20)    NOT NULL DEFAULT 'DRAFT',
   max_participants INT,
+  share_token     UUID           UNIQUE DEFAULT gen_random_uuid(),
+  is_flash        BOOLEAN        NOT NULL DEFAULT FALSE,
   created_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
+
+-- ============================================================
+-- MODULE 1 — MISE EN RELATION (équipe RODAMI)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS interests (
+  id            BIGSERIAL PRIMARY KEY,
+  user_id       BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tag           VARCHAR(100) NOT NULL,
+  category      VARCHAR(100),
+  source_event_id BIGINT      REFERENCES events(id) ON DELETE SET NULL, -- TWIST 09 : Traçabilité pour cleanup
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, tag, source_event_id)
+);
+
+CREATE TABLE IF NOT EXISTS connections (
+  id              BIGSERIAL PRIMARY KEY,
+  requester_id    BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  receiver_id     BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status          VARCHAR(20)     NOT NULL DEFAULT 'PENDING',
+  source_event_id BIGINT,           -- lien vers l'événement déclencheur
+  reality_score   DECIMAL(3,2)    NOT NULL DEFAULT 0.1, -- TWIST 09 : Score d'interaction réelle
+  interaction_count INT           NOT NULL DEFAULT 0,   -- TWIST 09 : Nombre d'interactions
+  created_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+  CHECK (requester_id <> receiver_id),
+  UNIQUE(requester_id, receiver_id)
+);
+
+-- Index pour les recommandations
+CREATE INDEX IF NOT EXISTS idx_interests_user ON interests(user_id);
+CREATE INDEX IF NOT EXISTS idx_interests_tag  ON interests(tag);
+CREATE INDEX IF NOT EXISTS idx_connections_users ON connections(requester_id, receiver_id);
 
 CREATE TABLE IF NOT EXISTS event_registrations (
   id              BIGSERIAL PRIMARY KEY,
   event_id        BIGINT      NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   user_id         BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  is_attended     BOOLEAN     NOT NULL DEFAULT FALSE, -- TWIST 09 : Présence confirmée
   registered_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(event_id, user_id)
 );
+
+-- Sécurité TWIST 08 / 09 : S'assurer que les colonnes existent
+DO 'BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name=''events'' AND column_name=''share_token'') THEN
+    ALTER TABLE events ADD COLUMN share_token UUID UNIQUE DEFAULT gen_random_uuid();
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name=''events'' AND column_name=''association_id'') THEN
+    ALTER TABLE events ADD COLUMN association_id BIGINT REFERENCES associations(id);
+  END IF;
+  
+  -- TWIST 09 : Colonnes pour la mesure des interactions réelles
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name=''connections'' AND column_name=''reality_score'') THEN
+    ALTER TABLE connections ADD COLUMN reality_score DECIMAL(3,2) NOT NULL DEFAULT 0.1;
+    ALTER TABLE connections ADD COLUMN interaction_count INT NOT NULL DEFAULT 0;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name=''event_registrations'' AND column_name=''is_attended'') THEN
+    ALTER TABLE event_registrations ADD COLUMN is_attended BOOLEAN NOT NULL DEFAULT FALSE;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name=''interests'' AND column_name=''source_event_id'') THEN
+    ALTER TABLE interests ADD COLUMN source_event_id BIGINT REFERENCES events(id) ON DELETE SET NULL;
+  END IF;
+END';
 
 -- Lien connexion ↔ événement (Sécurisé)
 DO 'BEGIN
@@ -181,6 +214,19 @@ CREATE TABLE IF NOT EXISTS interest_catalog (
   display_order SMALLINT     NOT NULL DEFAULT 0
 );
 
+-- Emplois du temps (RF-20 / TWIST 04)
+CREATE TABLE IF NOT EXISTS academic_schedules (
+  id              BIGSERIAL PRIMARY KEY,
+  user_id         BIGINT      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  summary         VARCHAR(255),
+  start_time      TIMESTAMPTZ NOT NULL,
+  end_time        TIMESTAMPTZ NOT NULL,
+  location        VARCHAR(255),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_schedule_user_time ON academic_schedules(user_id, start_time);
+
 -- Traçabilité et Audit (RF-18)
 CREATE TABLE IF NOT EXISTS audit_logs (
   id          BIGSERIAL PRIMARY KEY,
@@ -209,7 +255,8 @@ INSERT INTO governance_rules (rule_key, rule_value, is_fixed, set_by_role) VALUE
   ('push.enabled',                   'true',    FALSE, 'BDE'),
   ('cold_start.enabled',             'true',    TRUE,  'ADMIN'),
   ('algo.highlight.category',        'Sport',   FALSE, 'BDE'), -- RF-16 : Priorité ajustable
-  ('matching.max_suggestions',       '10',      TRUE,  'ADMIN') -- RF-17 : Règle figée
+  ('matching.max_suggestions',       '10',      TRUE,  'ADMIN'), -- RF-17 : Règle figée
+  ('academic.current_semester',      '1',       FALSE, 'ADMIN') -- TWIST 07 : Pilotage global
 ON CONFLICT (rule_key) DO NOTHING;
 
 -- ===== Catalogue d'intérêts prédéfinis (5 catégories) =====

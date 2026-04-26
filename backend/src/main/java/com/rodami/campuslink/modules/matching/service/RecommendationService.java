@@ -36,6 +36,7 @@ public class RecommendationService {
     private final InterestRepository interestRepository;
     private final UserService userService;
     private final ColdStartService coldStartService;
+    private final SemesterService semesterService;
     private final ReactiveRedisTemplate<String, String> redisTemplate;
 
     @Value("${campuslink.recommendations.pull-max-results:20}")
@@ -52,35 +53,38 @@ public class RecommendationService {
     public Flux<UserProfile> getRecommendations(Long userId) {
         log.debug("[PULL] Calcul recommandations pour userId={}", userId);
 
-        String cacheKey = "pull:recommendations:" + userId;
-
-        return userRepository.findById(userId)
-                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Utilisateur", userId)))
-                .flatMapMany(user -> profileContextRepository.findByUserId(userId)
-                        .map(ctx -> ctx.getIsCommuter() != null && ctx.getIsCommuter())
-                        .defaultIfEmpty(false)
-                        .flatMapMany(isCommuter -> {
-                            if (isCommuter) {
-                                log.info("[TWIST 04] Utilisateur navetteur détecté, priorisation des profils compatibles temps court");
-                            }
-                            return getCachedUserIds(cacheKey)
-                                    .switchIfEmpty(Flux.defer(() -> computeAndCachePullIds(userId, cacheKey)))
-                                    .collectList()
-                                    .flatMapMany(pullIds -> {
-                                        if (pullIds.size() < 3) {
-                                            log.info("[TWIST 06] Profil peu connecté ou sans intérêts communs, injection de suggestions générales (safety net)");
-                                            return Flux.fromIterable(pullIds)
-                                                    .concatWith(
-                                                        coldStartService.getPopularTags(5)
-                                                            .flatMap(tag -> interestRepository.findRecommendedUserIdsByTag(tag, userId, 5))
-                                                    )
-                                                    .distinct()
-                                                    .take(pullMaxResults);
+        return semesterService.getCurrentSemesterId()
+                .flatMapMany(semesterId -> {
+                    String cacheKey = "pull:recommendations:S" + semesterId + ":" + userId;
+                    
+                    return userRepository.findById(userId)
+                            .switchIfEmpty(Mono.error(new ResourceNotFoundException("Utilisateur", userId)))
+                            .flatMapMany(user -> profileContextRepository.findByUserId(userId)
+                                    .map(ctx -> ctx.getIsCommuter() != null && ctx.getIsCommuter())
+                                    .defaultIfEmpty(false)
+                                    .flatMapMany(isCommuter -> {
+                                        if (isCommuter) {
+                                            log.info("[TWIST 04] Utilisateur navetteur détecté, priorisation des profils compatibles temps court");
                                         }
-                                        return Flux.fromIterable(pullIds);
-                                    });
-                        })
-                )
+                                        return getCachedUserIds(cacheKey)
+                                                .switchIfEmpty(Flux.defer(() -> computeAndCachePullIds(userId, cacheKey)))
+                                                .collectList()
+                                                .flatMapMany(pullIds -> {
+                                                    if (pullIds.size() < 3) {
+                                                        log.info("[TWIST 06] Profil peu connecté ou sans intérêts communs, injection de suggestions générales (safety net)");
+                                                        return Flux.fromIterable(pullIds)
+                                                                .concatWith(
+                                                                    coldStartService.getPopularTags(5)
+                                                                        .flatMap(tag -> interestRepository.findRecommendedUserIdsByTag(tag, userId, 5))
+                                                                )
+                                                                .distinct()
+                                                                .take(pullMaxResults);
+                                                    }
+                                                    return Flux.fromIterable(pullIds);
+                                                });
+                                    })
+                            );
+                })
                 .flatMap(userService::getProfile)
                 .onErrorContinue((ex, obj) ->
                     log.warn("[PULL] Profil introuvable pour id={}, ignoré", obj));
@@ -125,11 +129,15 @@ public class RecommendationService {
     }
 
     // ================================================================
-    // Invalidation du cache lors d'un changement d'intérêts
+    // Invalidation du cache lors d'un changement d'intérêts ou d'interaction
     // ================================================================
     public Mono<Boolean> invalidateCache(Long userId) {
         log.debug("[CACHE] Invalidation du cache PULL pour userId={}", userId);
-        return redisTemplate.delete("pull:recommendations:" + userId)
+        return semesterService.getCurrentSemesterId()
+                .flatMap(semesterId -> {
+                    String cacheKey = "pull:recommendations:S" + semesterId + ":" + userId;
+                    return redisTemplate.delete(cacheKey);
+                })
                 .map(count -> count > 0);
     }
 }

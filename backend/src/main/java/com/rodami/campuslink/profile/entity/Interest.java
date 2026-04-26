@@ -25,5 +25,6 @@ public class Interest {
     private Long userId;
     private String tag;
     private String category;
+    private Long sourceEventId; // TWIST 09 : Origine de l'intérêt (si implicite)
     private Instant createdAt;
 }

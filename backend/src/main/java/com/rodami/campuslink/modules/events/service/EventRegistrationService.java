@@ -21,6 +21,9 @@ public class EventRegistrationService {
     private final EventRegistrationRepository registrationRepository;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
+    private final com.rodami.campuslink.profile.repository.ConnectionRepository connectionRepository;
+    private final com.rodami.campuslink.profile.service.ProfileService profileService;
+    private final com.rodami.campuslink.modules.matching.service.RecommendationService recommendationService;
 
     // ----------------------------------------------------------------
     // S'inscrire à un événement
@@ -57,6 +60,14 @@ public class EventRegistrationService {
                 })
                 .flatMap(this::enrichRegistration)
                 .doOnSuccess(r -> log.info("[EVENTS] Inscription: userId={} → eventId={}", userId, eventId));
+    }
+
+    /** TWIST 08 : Inscription via token public */
+    @Transactional
+    public Mono<RegistrationResponse> registerByShareToken(java.util.UUID shareToken, Long userId) {
+        return eventRepository.findByShareToken(shareToken)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Événement public", shareToken.toString())))
+                .flatMap(event -> register(event.getId(), userId));
     }
 
     // ----------------------------------------------------------------
@@ -122,5 +133,68 @@ public class EventRegistrationService {
                         .userNom(t.getT2())
                         .registeredAt(reg.getRegisteredAt())
                         .build());
+    }
+
+    /**
+     * TWIST 09 : Confirmer la présence réelle à un événement.
+     * Cette action transforme un "clic" (inscription) en "interaction réelle".
+     */
+    @Transactional
+    public Mono<Void> confirmAttendance(Long eventId, Long userId) {
+        log.info("[TWIST 09] Confirmation présence: userId={} → eventId={}", userId, eventId);
+        
+        return registrationRepository.confirmAttendance(eventId, userId)
+                .doOnNext(rows -> log.info("[TWIST 09] Présence mise à jour: {} ligne(s) modifiée(s) pour userId={}", rows, userId))
+                .doOnSuccess(v -> log.debug("[TWIST 09] Signal de confirmation terminé"))
+                .then(
+                    // TWIST 09 : AUTO-CONNECT (On crée du lien par l'action)
+                    registrationRepository.findAttendedUserIdsByEventId(eventId)
+                        .doOnNext(otherId -> log.debug("[TWIST 09] Co-participant trouvé: {}", otherId))
+                        .filter(otherId -> !otherId.equals(userId))
+                        .flatMap(otherId -> 
+                            connectionRepository.findBetweenUsers(userId, otherId)
+                                .doOnNext(c -> log.debug("[TWIST 09] Connexion existante trouvée avec {}", otherId))
+                                .flatMap(conn -> {
+                                    // Déjà connectés : on booste le score de réalité
+                                    double newScore = Math.min(1.0, (conn.getRealityScore() != null ? conn.getRealityScore() : 0.1) + 0.4);
+                                    return connectionRepository.updateRealityScore(userId, otherId, newScore)
+                                            .doOnSuccess(v -> log.debug("[TWIST 09] Score réalité mis à jour pour {}", otherId));
+                                })
+                                .switchIfEmpty(Mono.defer(() -> {
+                                    log.debug("[TWIST 09] Création auto-connexion avec {}", otherId);
+                                    return connectionRepository.save(com.rodami.campuslink.profile.entity.Connection.builder()
+                                        .requesterId(userId)
+                                        .receiverId(otherId)
+                                        .status("PENDING")
+                                        .realityScore(0.8)
+                                        .interactionCount(1)
+                                        .sourceEventId(eventId)
+                                        .createdAt(java.time.Instant.now())
+                                        .updatedAt(java.time.Instant.now())
+                                        .build())
+                                        .doOnSuccess(c -> log.debug("[TWIST 09] Auto-connexion sauvegardée"))
+                                        .then();
+                                }))
+                        )
+                        .then(Mono.defer(() -> {
+                            log.debug("[TWIST 09] Invalidation du cache pour {}", userId);
+                            return recommendationService.invalidateCache(userId);
+                        }))
+                        .then()
+                )
+                .then(
+                    // TWIST 09 : On enregistre l'intérêt seulement si la présence est CONFIRMÉE
+                    eventRepository.findById(eventId)
+                        .doOnNext(e -> log.debug("[TWIST 09] Événement trouvé pour intérêt implicite: {}", e.getTitre()))
+                        .flatMap(event -> {
+                            String tag = event.getTitre(); 
+                            return profileService.recordImplicitInterest(userId, tag, "Event", eventId)
+                                    .doOnSuccess(v -> log.debug("[TWIST 09] Intérêt implicite enregistré"));
+                        })
+                )
+                .onErrorResume(e -> {
+                    log.error("[TWIST 09] CRASH dans confirmAttendance: {}", e.getMessage(), e);
+                    return Mono.error(e);
+                });
     }
 }

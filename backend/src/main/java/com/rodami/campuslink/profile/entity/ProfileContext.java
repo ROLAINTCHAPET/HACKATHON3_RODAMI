@@ -34,6 +34,12 @@ public class ProfileContext {
     
     @Column("is_commuter")
     private Boolean isCommuter; // Twist 04 : Navetteur (temps limité)
+
+    private Short semester; // TWIST 07 : Semestre actuel (1 ou 2)
+    private String rythme;   // COURS, PROJET, STAGE
+    
+    @Column("principal_location")
+    private String principalLocation; // Bâtiment principal
     
     private Instant updatedAt;
 

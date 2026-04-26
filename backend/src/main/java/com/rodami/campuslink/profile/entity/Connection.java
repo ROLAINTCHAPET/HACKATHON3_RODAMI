@@ -26,6 +26,12 @@ public class Connection {
     @Column("source_event_id")
     private Long sourceEventId;
 
+    @Column("reality_score")
+    private Double realityScore;
+
+    @Column("interaction_count")
+    private Integer interactionCount;
+
     @Column("created_at")
     private Instant createdAt;
 

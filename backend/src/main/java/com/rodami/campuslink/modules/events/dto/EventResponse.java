@@ -31,6 +31,7 @@ public class EventResponse {
 
     private String status;
     private Integer maxParticipants;
+    private java.util.UUID shareToken; // TWIST 08 : Partage public
 
     /** Nombre de participants inscrits (calculé dynamiquement) */
     private Long participantCount;

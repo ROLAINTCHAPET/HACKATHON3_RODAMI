@@ -21,6 +21,9 @@ public class EventRegistration {
     @Column("user_id")
     private Long userId;
     
+    @Column("is_attended")
+    private Boolean isAttended;
+
     @Column("registered_at")
     private Instant registeredAt;
 }

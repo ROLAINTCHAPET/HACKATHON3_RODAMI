@@ -137,6 +137,15 @@ public class EventHandler {
                 .onErrorResume(this::handleError);
     }
 
+    /** POST /api/events/{id}/attendance/confirm — confirmer la présence (TWIST 09) */
+    public Mono<ServerResponse> confirmAttendance(ServerRequest req) {
+        Long eventId = Long.parseLong(req.pathVariable("id"));
+        return getAuthenticatedUserId()
+                .flatMap(uid -> registrationService.confirmAttendance(eventId, uid))
+                .then(ok().build())
+                .onErrorResume(this::handleError);
+    }
+
     /** DELETE /api/events/{id}/register — se désinscrire */
     public Mono<ServerResponse> unregister(ServerRequest req) {
         Long eventId = Long.parseLong(req.pathVariable("id"));

@@ -93,7 +93,7 @@ class ProfileServiceTest {
         when(interestRepository.findByUserId(1L)).thenReturn(Flux.empty());
         when(interestRepository.save(any(Interest.class))).thenReturn(Mono.just(testInterests.get(0)));
 
-        StepVerifier.create(profileService.recordImplicitInterest(1L, "Sport", "Culture"))
+        StepVerifier.create(profileService.recordImplicitInterest(1L, "Sport", "Culture", null))
             .verifyComplete();
     }
 

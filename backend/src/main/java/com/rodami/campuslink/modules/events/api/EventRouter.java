@@ -246,6 +246,7 @@ public class EventRouter {
             .PATCH( "/api/events/{id}/cancel",           handler::cancelEvent)
             .DELETE("/api/events/{id}",                  handler::deleteEvent)
             .POST(  "/api/events/{id}/register",         handler::register)
+            .POST(  "/api/events/{id}/attendance/confirm", handler::confirmAttendance)
             .DELETE("/api/events/{id}/register",         handler::unregister)
             .GET(   "/api/events/{id}/participants",     handler::getParticipants)
             .GET(   "/api/events/{id}/co-participants",  handler::getCoParticipants)
