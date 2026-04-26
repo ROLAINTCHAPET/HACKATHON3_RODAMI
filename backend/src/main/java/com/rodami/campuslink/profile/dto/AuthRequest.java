@@ -11,6 +11,6 @@ public record AuthRequest(
     @Email(message = "Email invalide")
     String email,
 
-    @NotBlank(message = "Le mot de passe est requis svp")
+    @NotBlank(message = "Le mot de passe est requis ")
     String password
 ) {}
