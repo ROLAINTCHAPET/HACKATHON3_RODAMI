@@ -10,6 +10,11 @@ import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
+/**
+ * DiagnosticController : Outil de monitoring de la santé sociale.
+ * TWIST 09 : Mesure les interactions réelles.
+ * TWIST 10 : Rend la vie sociale visible SANS PROFILER (statistiques anonymes).
+ */
 @RestController
 @RequestMapping("/api/diagnostics")
 @RequiredArgsConstructor
