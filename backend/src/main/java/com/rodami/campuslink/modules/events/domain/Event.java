@@ -19,7 +19,7 @@ import java.time.Instant;
  * Statuts : DRAFT → PUBLISHED → CANCELLED | PAST
  */
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Table("events")
