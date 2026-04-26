@@ -1,12 +1,14 @@
 package com.rodami.campuslink.modules.events.api;
 
 import com.rodami.campuslink.modules.events.dto.EventRequest;
+import com.rodami.campuslink.modules.events.dto.EventResponse;
 import com.rodami.campuslink.modules.events.service.EventRegistrationService;
 import com.rodami.campuslink.modules.events.service.EventService;
 import com.rodami.campuslink.profile.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -56,6 +58,12 @@ public class EventHandler {
     }
 
     /** GET /api/events/{id} — détail d'un événement */
+    public Mono<ServerResponse> getFlashEvents(ServerRequest request) {
+        return ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(eventService.getFlashEvents(), EventResponse.class);
+    }
+
     public Mono<ServerResponse> getEvent(ServerRequest req) {
         Long id = Long.parseLong(req.pathVariable("id"));
         return eventService.getById(id)

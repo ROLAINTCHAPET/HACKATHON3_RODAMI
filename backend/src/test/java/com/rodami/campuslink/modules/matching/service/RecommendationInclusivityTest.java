@@ -6,14 +6,13 @@ import com.rodami.campuslink.profile.repository.ProfileContextRepository;
 import com.rodami.campuslink.profile.repository.UserRepository;
 import com.rodami.campuslink.profile.service.ColdStartService;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.core.ReactiveListOperations;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -23,7 +22,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class RecommendationServiceTest {
+class RecommendationInclusivityTest {
 
     @Mock
     private UserRepository userRepository;
@@ -42,7 +41,7 @@ class RecommendationServiceTest {
 
     @Mock
     private ReactiveRedisTemplate<String, String> redisTemplate;
-    
+
     @Mock
     private ReactiveListOperations<String, String> listOperations;
 
@@ -51,29 +50,42 @@ class RecommendationServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Mock Redis ops
+        when(redisTemplate.opsForList()).thenReturn(listOperations);
         // Manual injection of @Value fields
         ReflectionTestUtils.setField(recommendationService, "pullMaxResults", 20);
-        // Default mock for safety net to avoid NPE
-        when(coldStartService.getPopularTags(anyInt())).thenReturn(Flux.empty());
     }
 
     @Test
-    @DisplayName("getRecommendations — Utilise le cache si présent")
-    void getRecommendations_use_cache() {
+    void getRecommendations_solitaryUser_shouldReceiveGeneralSuggestions() {
         Long userId = 1L;
-        String cacheKey = "pull:recommendations:" + userId;
+        User user = User.builder().id(userId).build();
 
-        when(userRepository.findById(userId)).thenReturn(Mono.just(User.builder().id(userId).build()));
+        when(userRepository.findById(userId)).thenReturn(Mono.just(user));
         when(profileContextRepository.findByUserId(userId)).thenReturn(Mono.empty());
-        when(redisTemplate.opsForList()).thenReturn(listOperations);
-        when(listOperations.range(cacheKey, 0, -1)).thenReturn(Flux.just("2", "3"));
         
-        // Mock userService.getProfile for each ID
-        when(userService.getProfile(2L)).thenReturn(Mono.empty());
-        when(userService.getProfile(3L)).thenReturn(Mono.empty());
+        // Cache miss
+        when(listOperations.range(anyString(), anyLong(), anyLong())).thenReturn(Flux.empty());
+        
+        // No interest-based matches
+        when(interestRepository.findRecommendedUserIds(eq(userId), anyInt())).thenReturn(Flux.empty());
+        
+        // Mock popular tags for safety net
+        when(coldStartService.getPopularTags(anyInt())).thenReturn(Flux.just("Sport", "Tech"));
+        
+        // Mock finding users by those popular tags
+        when(interestRepository.findRecommendedUserIdsByTag("Sport", userId, 5)).thenReturn(Flux.just(10L));
+        when(interestRepository.findRecommendedUserIdsByTag("Tech", userId, 5)).thenReturn(Flux.just(11L));
+        
+        // Mock profile construction
+        when(userService.getProfile(anyLong())).thenAnswer(inv -> {
+            Long id = inv.getArgument(0);
+            return Mono.just(com.rodami.campuslink.modules.matching.dto.UserProfile.builder().id(id).build());
+        });
 
         StepVerifier.create(recommendationService.getRecommendations(userId))
-                .expectNextCount(0)
+                .expectNextMatches(p -> p.getId().equals(10L))
+                .expectNextMatches(p -> p.getId().equals(11L))
                 .verifyComplete();
     }
 }

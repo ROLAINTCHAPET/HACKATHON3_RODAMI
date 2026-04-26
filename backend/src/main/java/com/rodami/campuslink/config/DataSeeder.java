@@ -1,8 +1,11 @@
 package com.rodami.campuslink.config;
 
+import com.rodami.campuslink.modules.events.domain.Event;
+import com.rodami.campuslink.modules.events.repository.EventRepository;
 import com.rodami.campuslink.profile.entity.Interest;
 import com.rodami.campuslink.profile.entity.ProfileContext;
 import com.rodami.campuslink.profile.entity.User;
+import com.rodami.campuslink.profile.repository.ConnectionRepository;
 import com.rodami.campuslink.profile.repository.InterestRepository;
 import com.rodami.campuslink.profile.repository.ProfileContextRepository;
 import com.rodami.campuslink.profile.repository.UserRepository;
@@ -14,6 +17,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -31,6 +35,8 @@ public class DataSeeder {
     private final UserRepository userRepository;
     private final ProfileContextRepository contextRepository;
     private final InterestRepository interestRepository;
+    private final ConnectionRepository connectionRepository;
+    private final EventRepository eventRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Bean
@@ -141,7 +147,26 @@ public class DataSeeder {
                     log.info("  ✅ Admin Système — rôle ADMIN");
                 });
 
-                log.info("Seed terminé — 5 profils créés avec variété de complétion");
+                // ===== Cas Twist 04 : Navetteur et Flash Event =====
+                ProfileContext commuterCtx = ProfileContext.builder()
+                    .userId(2L) // On prend l'utilisateur 2
+                    .filiere("Informatique")
+                    .annee((short)3)
+                    .isCommuter(true) // C'est un navetteur
+                    .build();
+                contextRepository.save(commuterCtx).subscribe();
+
+                Event flashEvent = Event.builder()
+                    .titre("Café éclair des Navetteurs")
+                    .description("Rencontre rapide entre deux trains")
+                    .status("PUBLISHED")
+                    .isFlash(true) // Événement court
+                    .dateDebut(Instant.now().plus(Duration.ofHours(1)))
+                    .dateFin(Instant.now().plus(Duration.ofHours(1).plus(Duration.ofMinutes(15))))
+                    .build();
+                eventRepository.save(flashEvent).subscribe();
+
+                log.info("Seed terminé — 5 profils créés + Données Twist 04 (Navetteur & Flash)");
             });
         };
     }

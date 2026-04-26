@@ -52,6 +52,20 @@ public interface InterestRepository extends ReactiveCrudRepository<Interest, Lon
         """)
     Flux<Long> findRecommendedUserIds(Long userId, int maxResults);
 
+    @Query("""
+        SELECT DISTINCT i.user_id
+        FROM interests i
+        WHERE i.tag = :tag
+          AND i.user_id <> :userId
+          AND i.user_id NOT IN (
+              SELECT CASE WHEN requester_id = :userId THEN receiver_id ELSE requester_id END
+              FROM connections
+              WHERE (requester_id = :userId OR receiver_id = :userId)
+          )
+        LIMIT :limit
+        """)
+    Flux<Long> findRecommendedUserIdsByTag(String tag, Long userId, int limit);
+
     /**
      * Utilisateurs qui NE partagent AUCUN intérêt avec l'utilisateur cible
      * (flux PUSH — anti bulle de filtre).
@@ -59,6 +73,14 @@ public interface InterestRepository extends ReactiveCrudRepository<Interest, Lon
     @Query("""
         SELECT DISTINCT u.id
         FROM users u
+        LEFT JOIN (
+            SELECT user_id, COUNT(*) as c_count 
+            FROM (
+                SELECT requester_id as user_id FROM connections WHERE status = 'ACCEPTED'
+                UNION ALL
+                SELECT receiver_id as user_id FROM connections WHERE status = 'ACCEPTED'
+            ) c GROUP BY user_id
+        ) conn_counts ON u.id = conn_counts.user_id
         WHERE u.id <> :userId
           AND u.id NOT IN (
               SELECT i2.user_id FROM interests i1
@@ -70,7 +92,9 @@ public interface InterestRepository extends ReactiveCrudRepository<Interest, Lon
               FROM connections
               WHERE (requester_id = :userId OR receiver_id = :userId)
           )
-        ORDER BY RANDOM()
+        /* TWIST 06 : Boost léger (x1.5) pour les profils ayant peu de connexions (<= 1) 
+           pour favoriser l'inclusion systémique sans stigmatisation. */
+        ORDER BY (CASE WHEN COALESCE(conn_counts.c_count, 0) <= 1 THEN 1.5 ELSE 1.0 END) * RANDOM() DESC
         LIMIT :maxResults
         """)
     Flux<Long> findPushDiscoveryUserIds(Long userId, int maxResults);
