@@ -4,12 +4,51 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { AuthService } from "@/lib/custom/AuthService";
+import { ProfileControllerService } from "@/lib/services/ProfileControllerService";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const user = await AuthService.login({
+        email,
+        password
+      });
+ 
+      if (user) {
+        // Fetch profile to get role and real name
+        try {
+          const profile = await ProfileControllerService.getMyProfile();
+          localStorage.setItem("userId", user.uid);
+          localStorage.setItem("userName", profile.displayName || user.displayName || email.split('@')[0]);
+          localStorage.setItem("userRole", profile.role || "STUDENT");
+        } catch (profileErr) {
+          console.warn("Failed to fetch profile during login, using defaults.");
+          localStorage.setItem("userId", user.uid);
+          localStorage.setItem("userName", user.displayName || email.split('@')[0]);
+          localStorage.setItem("userRole", "STUDENT");
+        }
+        router.push("/discover");
+      }
+    } catch (err: any) {
+      setError(err.message || "Identifiants invalides. Veuillez réessayer.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -38,7 +77,12 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <div className="glass-card p-10 rounded-[2.5rem] border border-glass-border shadow-2xl space-y-6">
+        <form onSubmit={handleLogin} className="glass-card p-10 rounded-[2.5rem] border border-glass-border shadow-2xl space-y-6">
+          {error && (
+            <div className="p-4 bg-rose/10 border border-rose/20 rounded-xl text-rose text-xs font-bold animate-in fade-in slide-in-from-top-2">
+              {error}
+            </div>
+          )}
           <div className="space-y-5">
             {/* Email Field */}
             <div className="space-y-2">
@@ -85,9 +129,20 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <Button variant="primary" className="w-full h-14 rounded-2xl text-lg font-bold glow-primary group shadow-2xl shadow-primary/20">
-            Se connecter
-            <ArrowRight className="h-5 w-5 ml-2 transition-transform group-hover:translate-x-1" />
+          <Button 
+            variant="primary" 
+            type="submit"
+            disabled={isLoading || !email || !password}
+            className="w-full h-14 rounded-2xl text-lg font-bold glow-primary group shadow-2xl shadow-primary/20"
+          >
+            {isLoading ? (
+              <Loader2 className="h-6 w-6 animate-spin" />
+            ) : (
+              <>
+                Se connecter
+                <ArrowRight className="h-5 w-5 ml-2 transition-transform group-hover:translate-x-1" />
+              </>
+            )}
           </Button>
 
           <div className="pt-2 text-center text-sm text-text-secondary">
@@ -96,7 +151,7 @@ export default function LoginPage() {
               S'inscrire gratuitement
             </Link>
           </div>
-        </div>
+        </form>
 
         {/* Info Box */}
         <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl flex items-start gap-3">

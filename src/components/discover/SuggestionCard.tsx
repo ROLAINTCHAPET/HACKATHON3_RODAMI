@@ -40,7 +40,7 @@ export const SuggestionCard = ({
   integrityScore,
   isPhantom,
 }: SuggestionCardProps) => {
-  const isLeavingSoon = remainingTime !== undefined && remainingTime < 15;
+  const isLeavingSoon = remainingTime !== undefined && remainingTime < 45;
 
   return (
     <div className={`glass-card group overflow-hidden rounded-2xl border transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10 ${
@@ -75,7 +75,7 @@ export const SuggestionCard = ({
             isLeavingSoon ? "border-error/40 text-error animate-pulse" : "border-teal/30 text-teal"
           }`}>
             <Clock className="h-3 w-3" />
-            {remainingTime}min sur site
+            {isLeavingSoon ? "S'en va bientôt" : `${remainingTime}min sur site`}
           </div>
         )}
 

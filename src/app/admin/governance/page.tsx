@@ -17,6 +17,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { GovernanceControllerService } from "@/lib/services/GovernanceControllerService";
+import { DiagnosticControllerService } from "@/lib/services/DiagnosticControllerService";
+import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 const rules = [
   {
@@ -56,6 +60,36 @@ const auditLogs = [
 export default function GovernancePage() {
   const [pushWeight, setPushWeight] = useState(25);
   const [rf19Active, setRf19Active] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRules = async () => {
+      setIsLoading(true);
+      try {
+        // Mocking fetching for now as there's no getRules endpoint, but we can update specific ones
+        // Real implementation would fetch current values from backend
+      } catch (err) {
+        console.error("Failed to fetch rules:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchRules();
+  }, []);
+
+  const handleUpdateRule = async (key: string, value: string) => {
+    setIsSaving(key);
+    try {
+      await GovernanceControllerService.updateRule(key, { value });
+      if (key === "RF-17") setPushWeight(parseInt(value));
+      if (key === "RF-19") setRf19Active(value === "true");
+    } catch (err) {
+      console.error(`Failed to update rule ${key}:`, err);
+    } finally {
+      setIsSaving(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background p-6 md:p-12">
@@ -98,10 +132,14 @@ export default function GovernancePage() {
                   <p className="text-xs text-text-secondary max-w-md">Supprime automatiquement les événements dont l'intégrité est &lt; 30% pour éviter la contamination.</p>
                 </div>
                 <div 
-                  onClick={() => setRf19Active(!rf19Active)}
+                  onClick={() => handleUpdateRule("RF-19", (!rf19Active).toString())}
                   className={`h-6 w-11 rounded-full transition-colors cursor-pointer relative ${rf19Active ? "bg-rose" : "bg-white/10"}`}
                 >
-                  <div className={`absolute top-1 left-1 h-4 w-4 bg-white rounded-full transition-transform ${rf19Active ? "translate-x-5" : ""}`} />
+                  {isSaving === "RF-19" ? (
+                    <Loader2 className="absolute inset-0 m-auto h-3 w-3 animate-spin text-white" />
+                  ) : (
+                    <div className={`absolute top-1 left-1 h-4 w-4 bg-white rounded-full transition-transform ${rf19Active ? "translate-x-5" : ""}`} />
+                  )}
                 </div>
               </div>
 
@@ -128,8 +166,10 @@ export default function GovernancePage() {
                         max="80" 
                         value={pushWeight} 
                         onChange={(e) => setPushWeight(parseInt(e.target.value))}
+                        onMouseUp={(e) => handleUpdateRule("RF-17", (e.target as HTMLInputElement).value)}
                         className="w-full accent-primary h-1.5 bg-background border border-glass-border rounded-lg appearance-none cursor-pointer"
                       />
+                      {isSaving === "RF-17" && <span className="text-[10px] text-primary-light animate-pulse">Synchronisation...</span>}
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-teal text-xs font-bold">
@@ -192,9 +232,27 @@ export default function GovernancePage() {
 
             {/* Twist Warning */}
             <div className="p-6 rounded-2xl bg-error/10 border border-error/30 space-y-4">
-              <div className="flex items-center gap-3 text-error font-bold text-sm">
-                <AlertTriangle className="h-5 w-5" />
-                VIGILANCE SYSTEME
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-error font-bold text-sm">
+                  <AlertTriangle className="h-5 w-5" />
+                  VIGILANCE SYSTEME
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 text-[10px] uppercase font-black hover:bg-error/20 text-error"
+                  onClick={async () => {
+                    try {
+                      const diag = await DiagnosticControllerService.getTwist09Diagnostics();
+                      console.log("Twist 09 Diagnostics:", diag);
+                      alert("Diagnostics Twist-09 récupérés avec succès. Consultez la console (F12) pour le détail technique.");
+                    } catch (e) {
+                      console.error("Failed to fetch Twist 09 diagnostics:", e);
+                    }
+                  }}
+                >
+                  Détails Twist-09
+                </Button>
               </div>
               <p className="text-[10px] text-text-secondary leading-normal italic">
                 Alerte Obsolescence : L'entropie des données clubs contamine les recommandations de cercle. 

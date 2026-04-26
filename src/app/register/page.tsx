@@ -4,13 +4,41 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, ArrowRight, User, ChevronRight, Zap } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, ArrowRight, User, Loader2 } from "lucide-react";
+import { AuthService } from "@/lib/custom/AuthService";
+import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const user = await AuthService.register({
+        email,
+        password
+      });
+
+      if (user) {
+        localStorage.setItem("userId", user.uid);
+        localStorage.setItem("userName", email.split('@')[0]);
+        router.push("/discover");
+      }
+    } catch (err: any) {
+      setError(err.message || "Une erreur est survenue lors de l'inscription.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -39,7 +67,12 @@ export default function RegisterPage() {
         </div>
 
         {/* Form Body */}
-        <div className="glass-card p-10 rounded-[2.5rem] border border-glass-border shadow-2xl space-y-8">
+        <form onSubmit={handleRegister} className="glass-card p-10 rounded-[2.5rem] border border-glass-border shadow-2xl space-y-8">
+          {error && (
+            <div className="p-4 bg-rose/10 border border-rose/20 rounded-xl text-rose text-xs font-bold animate-in fade-in slide-in-from-top-2">
+              {error}
+            </div>
+          )}
           <div className="space-y-4">
             {/* ID Field */}
             <div className="space-y-2">
@@ -66,6 +99,7 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="nom.prenom@univ-campus.fr"
+                  required
                   className="w-full h-14 pl-12 pr-4 bg-white/5 border border-glass-border rounded-2xl text-foreground placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
                 />
               </div>
@@ -81,6 +115,7 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
+                  required
                   className="w-full h-14 pl-12 pr-12 bg-white/5 border border-glass-border rounded-2xl text-foreground placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
                 />
                 <button
@@ -94,15 +129,18 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <Link href="/discover">
-            <Button 
-              disabled={!userId || !email || !password}
-              className="w-full h-14 rounded-2xl text-lg font-bold glow-primary group shadow-2xl shadow-primary/20 disabled:opacity-50"
-            >
-              Établir la Connexion
-              <ArrowRight className="h-5 w-5 ml-2 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </Link>
+          <Button 
+            type="submit"
+            disabled={isLoading || !userId || !email || !password}
+            className="w-full h-14 rounded-2xl text-lg font-bold glow-primary group shadow-2xl shadow-primary/20 disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : (
+              <>
+                Établir la Connexion
+                <ArrowRight className="h-5 w-5 ml-2 transition-transform group-hover:translate-x-1" />
+              </>
+            )}
+          </Button>
 
           <div className="pt-4 text-center text-sm text-text-secondary border-t border-glass-border">
             Vous avez déjà un compte ?{" "}
@@ -110,7 +148,7 @@ export default function RegisterPage() {
               Se connecter
             </Link>
           </div>
-        </div>
+        </form>
 
         {/* Terms agreement */}
         <p className="text-[10px] text-center text-text-secondary leading-relaxed px-10">

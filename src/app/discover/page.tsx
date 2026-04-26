@@ -1,12 +1,68 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { SuggestionCard } from "@/components/discover/SuggestionCard";
 import { PrivacyCensorship } from "@/components/discover/PrivacyCensorship";
-import { Sparkles, ShieldAlert, ArrowLeft } from "lucide-react";
+import { Sparkles, ShieldAlert, ArrowLeft, Loader2 } from "lucide-react";
+import { RecommandationsService } from "@/lib/services/RecommandationsService";
+import { VNementsService } from "@/lib/services/VNementsService";
+import { ProfileControllerService } from "@/lib/services/ProfileControllerService";
+import { UserProfile } from "@/lib/models/UserProfile";
+import { EventResponse } from "@/lib/models/EventResponse";
+import { mapUserToCardProps, mapEventToCardProps } from "@/lib/utils/mapping";
 
 export default function DiscoverPage() {
+  const [people, setPeople] = useState<UserProfile[]>([]);
+  const [events, setEvents] = useState<EventResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      const userId = localStorage.getItem("userId") || "1";
+      
+      try {
+        let recs: UserProfile[] = [];
+        let discovery: UserProfile[] = [];
+        
+        try {
+          const [resRecs, resDiscovery] = await Promise.all([
+            RecommandationsService.getRecommendations(userId),
+            RecommandationsService.getDiscovery(userId)
+          ]);
+          recs = resRecs;
+          discovery = resDiscovery;
+        } catch (e) {
+          console.warn("Standard recommendations failed, falling back to Cold Start.");
+        }
+
+        // Twist 03: Cold Start logic
+        if (recs.length === 0 && discovery.length === 0) {
+          console.log("Twist 03: Cold Start triggered (0 connections). Fetching interest-based suggestions...");
+          const coldStart = await ProfileControllerService.getColdStartSuggestions();
+          // Map cold start suggestions (Record structure) to UserProfile array
+          // The API returns Record<string, Record<string, any>>
+          const coldStartUsers: UserProfile[] = Object.values(coldStart)
+            .flatMap(group => Object.values(group)) as UserProfile[];
+          setPeople(coldStartUsers);
+        } else {
+          setPeople([...recs, ...discovery]);
+        }
+
+        const allEvents = await VNementsService.getAllEvents(undefined, undefined, true);
+        setEvents(allEvents);
+      } catch (err) {
+        console.error("Failed to fetch discovery data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   return (
     <div className="space-y-12">
       {/* Back Button (Local for mobile/UX) */}
@@ -35,6 +91,11 @@ export default function DiscoverPage() {
           <p className="text-text-secondary leading-relaxed">
             Le Service Vie Privée bloque certaines données. L'algorithme opère désormais par Carence de Données et Inférence par Empreinte.
           </p>
+          {/* Twist 07: Temporal Shift Alert */}
+          <div className="flex items-center gap-3 p-3 bg-teal/10 border border-teal/20 rounded-xl animate-pulse">
+            <div className="h-2 w-2 rounded-full bg-teal animate-ping" />
+            <span className="text-[10px] font-black uppercase text-teal">Alerte Synchro : Basculement de Semestre (S2-2026)</span>
+          </div>
         </div>
         
         <div className="w-full lg:w-80 shrink-0">
@@ -64,91 +125,32 @@ export default function DiscoverPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold flex items-center gap-3 text-text-secondary">
             Suggestions Algorithmiques
-            <span className="text-xs font-normal text-error">60% de données absentes</span>
+            <span className="text-xs font-normal text-error">Recommandations en temps réel</span>
           </h2>
         </div>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <SuggestionCard
-            type="person"
-            title="[REDACTED]"
-            subtitle="Inconnu • Profil Tronqué"
-            image="" 
-            tags={["Inférence_1", "Inférence_2"]}
-            matchScore={99}
-            isAnonymous
-            isInferred
-            isCommuter
-            remainingTime={12}
-            justification="Co-participation à 4 événements institutionnels. Distance de bulle : 0.2."
-          />
-          <SuggestionCard
-            type="person"
-            title="[REDACTED]"
-            subtitle="Inconnu • Profil Tronqué"
-            image="" 
-            tags={["Shadow_Data", "Ghost_Metric"]}
-            matchScore={96}
-            isAnonymous
-            isInferred
-            isCommuter
-            remainingTime={38}
-            justification="Inférence croisée via Inférence de Substitution. Profil fantôme généré pour stabilisation campus."
-          />
-          <SuggestionCard
-            type="person"
-            title="Sami Ben"
-            subtitle="Design Industriel • Master 1"
-            image="/students-black.png"
-            tags={["3D-Printing", "UI/UX"]}
-            matchScore={94}
-            remainingTime={45}
-            justification="Matches vos intérêts 'UI/UX' (Module 2). Présence navetteur compatible."
-          />
-          <SuggestionCard
-            type="person"
-            title="[GHOST_NODE_06]"
-            subtitle="Inconnu • Inférence Destructive"
-            image="" 
-            tags={["Neutralité_Isolement", "Fantôme"]}
-            matchScore={99}
-            isPhantom
-            justification="Généré pour éviter de cibler l'isolement. Dépendance destructrice invisible."
-          />
-          <SuggestionCard
-            type="person"
-            title="[REDACTED]"
-            subtitle="Inconnu • Profil Tronqué"
-            image="" 
-            tags={["Probabilité_Haute"]}
-            matchScore={91}
-            isAnonymous
-            isInferred
-            isCommuter
-            remainingTime={8}
-            justification="Audit RF-17 : Influx de diversité nécessaire. Poids PUSH : 25%."
-          />
-          <SuggestionCard
-            type="person"
-            title="[REDACTED]"
-            subtitle="Inconnu • Profil Tronqué"
-            image="" 
-            tags={["Algorithmic_Match"]}
-            matchScore={88}
-            isAnonymous
-            isInferred
-            isCommuter
-            remainingTime={24}
-          />
-          <SuggestionCard
-            type="person"
-            title="Léa Martin"
-            subtitle="Génie Civil • Licence 3"
-            image="/networking-black.png"
-            tags={["Sustainability", "Yoga"]}
-            matchScore={89}
-          />
-        </div>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <Loader2 className="h-12 w-12 text-primary animate-spin" />
+            <p className="text-text-secondary animate-pulse">Calcul de la topologie du campus...</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {people.map((person, idx) => (
+              <SuggestionCard
+                key={person.id || idx}
+                type="person"
+                image={person.email?.includes("redacted") ? "" : "/students-black.png"}
+                {...mapUserToCardProps(person)}
+              />
+            ))}
+            {people.length === 0 && (
+              <div className="col-span-full py-10 text-center glass rounded-2xl border border-glass-border">
+                <p className="text-text-secondary">Aucune suggestion disponible pour le moment.</p>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Events Section */}
@@ -160,28 +162,27 @@ export default function DiscoverPage() {
           </h2>
         </div>
         
-        <div className="grid md:grid-cols-2 gap-6">
-          <SuggestionCard
-            type="event"
-            title="Workshop: Premium UI Design"
-            subtitle="Apprenez à créer des interfaces futuristes"
-            image="/mockup-black.png"
-            location="Amphi B, 14h00"
-            tags={["Design", "Creative", "Figma"]}
-            matchScore={97}
-          />
-          <SuggestionCard
-            type="event"
-            title="Networking Night: AI Campus"
-            subtitle="Rencontrez les innovateurs de demain"
-            image="/event-black.png"
-            location="Grand Hall, 19h30"
-            tags={["Networking", "Tech", "Pizza"]}
-            matchScore={85}
-            isPhantom
-            justification="Lieu neutre généré par Twist-06 pour stabilisation sociale."
-          />
-        </div>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+            <Loader2 className="h-12 w-12 text-primary animate-spin" />
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6">
+            {events.map((event, idx) => (
+              <SuggestionCard
+                key={event.id || idx}
+                type="event"
+                image={idx % 2 === 0 ? "/mockup-black.png" : "/event-black.png"}
+                {...mapEventToCardProps(event)}
+              />
+            ))}
+            {events.length === 0 && (
+              <div className="col-span-full py-10 text-center glass rounded-2xl border border-glass-border">
+                <p className="text-text-secondary">Aucun événement à venir trouvé.</p>
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

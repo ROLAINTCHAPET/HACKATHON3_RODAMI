@@ -15,6 +15,7 @@ export const DiscoverySidebar = () => {
   const [entropy, setEntropy] = useState(42);
   const [churnRate, setChurnRate] = useState(35);
   const [contamination, setContamination] = useState(12);
+  const [semesterFlip, setSemesterFlip] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -25,6 +26,7 @@ export const DiscoverySidebar = () => {
       setEntropy((prev) => Math.min(100, Math.max(0, prev + (Math.random() - 0.5) * 6)));
       setChurnRate((prev) => 35 + Math.random() * 15);
       setContamination((prev) => Math.min(100, prev + Math.random() * 8));
+      setSemesterFlip((prev) => (prev < 100 ? prev + 1 : 0));
     }, 4000);
     return () => clearInterval(timer);
   }, []);
@@ -123,6 +125,25 @@ export const DiscoverySidebar = () => {
             </div>
             <p className="text-[9px] text-text-secondary italic leading-tight">
               L'impossibilité de cibler l'isolement génère des dépendances destructrices invisibles.
+            </p>
+            <div className="flex items-center justify-between text-[10px] font-black uppercase text-teal">
+              <span>TWIST-07 : Bascule Semestre</span>
+              <span className="text-teal animate-pulse">EN COURS</span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs font-bold text-text-secondary">
+                <span>Recalibrage Cohortes</span>
+                <span className="text-teal">{semesterFlip}%</span>
+              </div>
+              <div className="h-1 w-full bg-teal/10 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-teal transition-all duration-[4000ms] ease-in-out"
+                  style={{ width: `${semesterFlip}%` }}
+                />
+              </div>
+            </div>
+            <p className="text-[9px] text-text-secondary italic leading-tight">
+              Toutes les cohortes, salles et rythmes basculent. Le contexte de match devient obsolète.
             </p>
             <Link href="/admin/governance" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors group">
               <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
