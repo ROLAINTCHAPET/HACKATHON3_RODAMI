@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS events (
   category_id     BIGINT         REFERENCES event_categories(id),
   organisateur_id BIGINT         NOT NULL REFERENCES users(id),
   association_id  BIGINT         REFERENCES associations(id),
-  status          event_status   NOT NULL DEFAULT 'DRAFT',
+  status          VARCHAR(20)    NOT NULL DEFAULT 'DRAFT',
   max_participants INT,
   share_token     UUID           UNIQUE DEFAULT gen_random_uuid(),
   is_flash        BOOLEAN        NOT NULL DEFAULT FALSE,
@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS connections (
   id              BIGSERIAL PRIMARY KEY,
   requester_id    BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   receiver_id     BIGINT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  status          connection_status NOT NULL DEFAULT 'PENDING',
+  status          VARCHAR(20)     NOT NULL DEFAULT 'PENDING',
   source_event_id BIGINT,           -- lien vers l'événement déclencheur
   reality_score   DECIMAL(3,2)    NOT NULL DEFAULT 0.1, -- TWIST 09 : Score d'interaction réelle
   interaction_count INT           NOT NULL DEFAULT 0,   -- TWIST 09 : Nombre d'interactions

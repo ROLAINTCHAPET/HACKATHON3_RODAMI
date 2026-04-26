@@ -94,7 +94,6 @@ public interface ConnectionRepository extends ReactiveCrudRepository<Connection,
         """)
     Mono<Void> updateRealityScore(Long u1, Long u2, Double score);
 
-    /** TWIST 09 : Pénalité systémique (dépendance destructive) */
     @Query("""
         UPDATE connections 
         SET reality_score = reality_score * 0.5,
@@ -102,4 +101,8 @@ public interface ConnectionRepository extends ReactiveCrudRepository<Connection,
         WHERE source_event_id = :eventId
         """)
     Mono<Void> penalizeConnectionsForEvent(Long eventId);
+
+    Mono<Long> countByRealityScoreGreaterThan(double score);
+
+    Mono<Long> countBySourceEventIdIsNotNull();
 }

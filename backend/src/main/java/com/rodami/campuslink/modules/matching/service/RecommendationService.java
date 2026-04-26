@@ -129,11 +129,15 @@ public class RecommendationService {
     }
 
     // ================================================================
-    // Invalidation du cache lors d'un changement d'intérêts
+    // Invalidation du cache lors d'un changement d'intérêts ou d'interaction
     // ================================================================
     public Mono<Boolean> invalidateCache(Long userId) {
         log.debug("[CACHE] Invalidation du cache PULL pour userId={}", userId);
-        return redisTemplate.delete("pull:recommendations:" + userId)
+        return semesterService.getCurrentSemesterId()
+                .flatMap(semesterId -> {
+                    String cacheKey = "pull:recommendations:S" + semesterId + ":" + userId;
+                    return redisTemplate.delete(cacheKey);
+                })
                 .map(count -> count > 0);
     }
 }

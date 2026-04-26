@@ -36,7 +36,7 @@ public interface InterestRepository extends ReactiveCrudRepository<Interest, Lon
      */
     @Query("""
         SELECT i2.user_id, 
-               COUNT(*) * (1.0 + COALESCE(att.boost, 0.0)) AS weighted_score
+               COUNT(*) * (1.0 + COALESCE(att.boost, 0.0)) * (CASE WHEN c.status = 'PENDING' AND c.source_event_id IS NOT NULL THEN 2.0 ELSE 1.0 END) AS weighted_score
         FROM interests i1
         JOIN interests i2 ON i1.tag = i2.tag
         LEFT JOIN (
@@ -46,15 +46,12 @@ public interface InterestRepository extends ReactiveCrudRepository<Interest, Lon
             WHERE is_attended = true 
             GROUP BY user_id
         ) att ON i2.user_id = att.user_id
+        LEFT JOIN connections c ON (c.requester_id = :userId AND c.receiver_id = i2.user_id)
+                                 OR (c.requester_id = i2.user_id AND c.receiver_id = :userId)
         WHERE i1.user_id = :userId
           AND i2.user_id <> :userId
-          AND i2.user_id NOT IN (
-              SELECT CASE WHEN requester_id = :userId THEN receiver_id ELSE requester_id END
-              FROM connections
-              WHERE (requester_id = :userId OR receiver_id = :userId)
-                AND status = 'ACCEPTED'
-          )
-        GROUP BY i2.user_id, att.boost
+          AND (c.status IS NULL OR c.status <> 'ACCEPTED') -- On exclut les déjà connectés acceptés
+        GROUP BY i2.user_id, att.boost, c.status, c.source_event_id
         ORDER BY weighted_score DESC
         LIMIT :maxResults
         """)

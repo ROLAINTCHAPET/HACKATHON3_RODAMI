@@ -2,65 +2,59 @@
 
 # Configuration
 BASE_URL="http://localhost:8080/api"
-echo "🚀 Démarrage du test TWIST 09 (Interactions Réelles)..."
+echo "🚀 Démarrage du test TWIST 09 (Logique système respectée)..."
+
+# Génération d'un ID unique pour cette session de test
+RID=$RANDOM
 
 # 1. Inscription et Login
-echo -e "\n1️⃣ Création d'un utilisateur de test..."
-AUTH_RES=$(curl -s -X POST "$BASE_URL/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "nom": "Interacteur",
-    "prenom": "Paul",
-    "email": "paul.real@campus.fr",
-    "password": "password123"
-  }')
+echo -e "\n1️⃣ Création des utilisateurs..."
+# Paul
+PAUL_RES=$(curl -s -X POST "$BASE_URL/auth/register" -H "Content-Type: application/json" \
+  -d "{\"nom\": \"Paul\", \"prenom\": \"Interacteur\", \"email\": \"paul.$RID@campus.fr\", \"password\": \"password123\"}")
+PAUL_TOKEN=$(echo $PAUL_RES | grep -oP '(?<="token":")[^"]*')
+echo "✅ Paul créé (paul.$RID@campus.fr)"
 
-TOKEN=$(echo $AUTH_RES | grep -oP '(?<="token":")[^"]*')
-USER_ID=$(echo $AUTH_RES | grep -oP '(?<="userId":)[0-9]*')
-echo "✅ Utilisateur Paul créé (ID: $USER_ID)"
+# Marie
+MARIE_RES=$(curl -s -X POST "$BASE_URL/auth/register" -H "Content-Type: application/json" \
+  -d "{\"nom\": \"Marie\", \"prenom\": \"Active\", \"email\": \"marie.$RID@campus.fr\", \"password\": \"password123\"}")
+MARIE_TOKEN=$(echo $MARIE_RES | grep -oP '(?<="token":")[^"]*')
+echo "✅ Marie créée (marie.$RID@campus.fr)"
 
-# 2. Création d'un événement (par l'admin)
-echo -e "\n2️⃣ Création d'un événement par l'admin..."
-# On utilise un token admin si possible, sinon on suppose que Paul peut créer (dev mode)
-EVENT_RES=$(curl -s -X POST "$BASE_URL/events" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "titre": "Workshop TWIST 09",
-    "description": "Un workshop sur les interactions réelles",
-    "dateDebut": "2026-05-01T10:00:00Z",
-    "lieu": "Amphi Réalité",
-    "categoryId": 1
-  }')
+# 2. Création et Publication d'un événement
+echo -e "\n2️⃣ Création et Publication de l'événement..."
+# On ajoute le LIEU pour satisfaire la validation TWIST 05
+EVENT_RES=$(curl -s -X POST "$BASE_URL/events" -H "Authorization: Bearer $PAUL_TOKEN" -H "Content-Type: application/json" \
+  -d "{\"titre\": \"Hackathon $RID\", \"description\": \"Workshop interactif\", \"dateDebut\": \"2026-05-01T10:00:00Z\", \"categoryId\": 1, \"lieu\": \"Bâtiment C\"}")
 EVENT_ID=$(echo $EVENT_RES | grep -oP '(?<="id":)[0-9]*')
-echo "✅ Événement créé (ID: $EVENT_ID)"
 
-# Publication
-curl -s -X PATCH "$BASE_URL/events/$EVENT_ID/publish" -H "Authorization: Bearer $TOKEN" > /dev/null
-echo "✅ Événement publié."
+if [ -z "$EVENT_ID" ]; then
+  echo "❌ Erreur création: $EVENT_RES"
+  exit 1
+fi
 
-# 3. Inscription (Le "Clic")
-echo -e "\n3️⃣ Inscription à l'événement (Simple Clic)..."
-curl -s -X POST "$BASE_URL/events/$EVENT_ID/register" \
-  -H "Authorization: Bearer $TOKEN" | json_pp
+# Publication officielle
+PUB_RES=$(curl -s -X PATCH "$BASE_URL/events/$EVENT_ID/publish" -H "Authorization: Bearer $PAUL_TOKEN")
+echo "✅ Événement $EVENT_ID créé et publié."
 
-echo -e "\n📊 Vérification DB (Optionnel) : l'intérêt n'est PAS encore ajouté (selon TWIST 09)."
+# 3. Inscription
+echo -e "\n3️⃣ Inscriptions..."
+REG_PAUL=$(curl -s -X POST "$BASE_URL/events/$EVENT_ID/register" -H "Authorization: Bearer $PAUL_TOKEN")
+REG_MARIE=$(curl -s -X POST "$BASE_URL/events/$EVENT_ID/register" -H "Authorization: Bearer $MARIE_TOKEN")
+echo "✅ Paul et Marie inscrits."
 
-# 4. Confirmation de présence (L'Interaction Réelle)
-echo -e "\n4️⃣ Confirmation de présence (Interaction Réelle)..."
-curl -s -X POST "$BASE_URL/events/$EVENT_ID/attendance/confirm" \
-  -H "Authorization: Bearer $TOKEN"
-echo "✅ Présence confirmée."
+# 4. Confirmation (TWIST 09)
+echo -e "\n4️⃣ Confirmations de présence..."
+echo "Marie arrive..."
+curl -s -X POST "$BASE_URL/events/$EVENT_ID/attendance/confirm" -H "Authorization: Bearer $MARIE_TOKEN" > /dev/null
+echo "Paul arrive (Déclenche l'Auto-Connect)..."
+curl -s -X POST "$BASE_URL/events/$EVENT_ID/attendance/confirm" -H "Authorization: Bearer $PAUL_TOKEN" > /dev/null
 
-# 5. Vérification du profil (L'intérêt doit être apparu)
-echo -e "\n5️⃣ Vérification du profil de Paul..."
-curl -s -X GET "$BASE_URL/profiles/me" \
-  -H "Authorization: Bearer $TOKEN" | json_pp
+# 5. Rapport Final
+echo -e "\n5️⃣ Rapport de Diagnostic TWIST 09..."
+curl -s -X GET "$BASE_URL/diagnostics/twist09" | json_pp
 
-# 6. Annulation de l'événement (Dépendance Destructrice)
-echo -e "\n6️⃣ Annulation de l'événement (Test de la pénalité systémique)..."
-curl -s -X PATCH "$BASE_URL/events/$EVENT_ID/cancel" \
-  -H "Authorization: Bearer $TOKEN"
-echo "✅ Événement annulé. La pénalité a été appliquée aux scores de réalité en tâche de fond."
+echo -e "\n🔍 DEBUG: Liste brute des connexions..."
+curl -s -X GET "$BASE_URL/diagnostics/debug/connections" | json_pp
 
-echo -e "\n✨ Test TWIST 09 terminé !"
+echo -e "\n✨ Test terminé."

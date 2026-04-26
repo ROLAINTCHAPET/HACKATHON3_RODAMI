@@ -23,6 +23,7 @@ public class EventRegistrationService {
     private final UserRepository userRepository;
     private final com.rodami.campuslink.profile.repository.ConnectionRepository connectionRepository;
     private final com.rodami.campuslink.profile.service.ProfileService profileService;
+    private final com.rodami.campuslink.modules.matching.service.RecommendationService recommendationService;
 
     // ----------------------------------------------------------------
     // S'inscrire à un événement
@@ -143,26 +144,57 @@ public class EventRegistrationService {
         log.info("[TWIST 09] Confirmation présence: userId={} → eventId={}", userId, eventId);
         
         return registrationRepository.confirmAttendance(eventId, userId)
+                .doOnNext(rows -> log.info("[TWIST 09] Présence mise à jour: {} ligne(s) modifiée(s) pour userId={}", rows, userId))
+                .doOnSuccess(v -> log.debug("[TWIST 09] Signal de confirmation terminé"))
                 .then(
-                    // Effet non-local : On booste le reality_score de l'utilisateur avec ses co-participants
-                    registrationRepository.findUserIdsByEventId(eventId)
+                    // TWIST 09 : AUTO-CONNECT (On crée du lien par l'action)
+                    registrationRepository.findAttendedUserIdsByEventId(eventId)
+                        .doOnNext(otherId -> log.debug("[TWIST 09] Co-participant trouvé: {}", otherId))
                         .filter(otherId -> !otherId.equals(userId))
                         .flatMap(otherId -> 
-                            // On augmente le score de 0.4 pour chaque co-participant (réalisme partagé)
                             connectionRepository.findBetweenUsers(userId, otherId)
+                                .doOnNext(c -> log.debug("[TWIST 09] Connexion existante trouvée avec {}", otherId))
                                 .flatMap(conn -> {
-                                    double newScore = (conn.getRealityScore() != null ? conn.getRealityScore() : 0.1) + 0.4;
-                                    return connectionRepository.updateRealityScore(userId, otherId, newScore);
+                                    // Déjà connectés : on booste le score de réalité
+                                    double newScore = Math.min(1.0, (conn.getRealityScore() != null ? conn.getRealityScore() : 0.1) + 0.4);
+                                    return connectionRepository.updateRealityScore(userId, otherId, newScore)
+                                            .doOnSuccess(v -> log.debug("[TWIST 09] Score réalité mis à jour pour {}", otherId));
                                 })
-                        ).then()
+                                .switchIfEmpty(Mono.defer(() -> {
+                                    log.debug("[TWIST 09] Création auto-connexion avec {}", otherId);
+                                    return connectionRepository.save(com.rodami.campuslink.profile.entity.Connection.builder()
+                                        .requesterId(userId)
+                                        .receiverId(otherId)
+                                        .status("PENDING")
+                                        .realityScore(0.8)
+                                        .interactionCount(1)
+                                        .sourceEventId(eventId)
+                                        .createdAt(java.time.Instant.now())
+                                        .updatedAt(java.time.Instant.now())
+                                        .build())
+                                        .doOnSuccess(c -> log.debug("[TWIST 09] Auto-connexion sauvegardée"))
+                                        .then();
+                                }))
+                        )
+                        .then(Mono.defer(() -> {
+                            log.debug("[TWIST 09] Invalidation du cache pour {}", userId);
+                            return recommendationService.invalidateCache(userId);
+                        }))
+                        .then()
                 )
                 .then(
-                    // TWIST 09 : On enregistre l'intérêt seulement si la présence est CONFIRMÉE (interaction réelle)
+                    // TWIST 09 : On enregistre l'intérêt seulement si la présence est CONFIRMÉE
                     eventRepository.findById(eventId)
+                        .doOnNext(e -> log.debug("[TWIST 09] Événement trouvé pour intérêt implicite: {}", e.getTitre()))
                         .flatMap(event -> {
-                            String tag = event.getTitre(); // Simplification : le titre devient un tag
-                            return profileService.recordImplicitInterest(userId, tag, "Event", eventId);
+                            String tag = event.getTitre(); 
+                            return profileService.recordImplicitInterest(userId, tag, "Event", eventId)
+                                    .doOnSuccess(v -> log.debug("[TWIST 09] Intérêt implicite enregistré"));
                         })
-                );
+                )
+                .onErrorResume(e -> {
+                    log.error("[TWIST 09] CRASH dans confirmAttendance: {}", e.getMessage(), e);
+                    return Mono.error(e);
+                });
     }
 }
