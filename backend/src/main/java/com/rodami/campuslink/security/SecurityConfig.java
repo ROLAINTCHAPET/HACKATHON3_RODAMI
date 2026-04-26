@@ -29,6 +29,8 @@ public class SecurityConfig {
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeExchange(ex -> ex
+                // Endpoints publics (Partage & Adoption - TWIST 08)
+                .pathMatchers("/api/public/**").permitAll()
                 // Actuator public
                 .pathMatchers("/actuator/**").permitAll()
                 // Swagger UI & OpenAPI

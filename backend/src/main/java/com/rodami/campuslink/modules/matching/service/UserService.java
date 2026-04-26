@@ -104,6 +104,24 @@ public class UserService {
                 });
     }
 
+    /**
+     * TWIST 08 : Récupère un utilisateur par email ou en crée un nouveau avec le rôle GUEST.
+     * Utilisé pour l'adoption sans friction via liens publics.
+     */
+    @Transactional
+    public Mono<User> getOrCreateGuestUser(String email, String prenom) {
+        return userRepository.findByEmail(email)
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.info("[TWIST 08] Création d'un profil fantôme (GUEST) pour email={}", email);
+                    User guest = User.builder()
+                            .email(email)
+                            .prenom(prenom)
+                            .role("GUEST")
+                            .build();
+                    return userRepository.save(guest);
+                }));
+    }
+
     // ----------------------------------------------------------------
     // Mise à jour du profil
     // ----------------------------------------------------------------

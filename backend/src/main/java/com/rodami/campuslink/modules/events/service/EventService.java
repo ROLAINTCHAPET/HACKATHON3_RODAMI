@@ -67,6 +67,13 @@ public class EventService {
                 .flatMap(this::enrichEvent);
     }
 
+    /** Détail d'un événement par son token public (TWIST 08) */
+    public Mono<EventResponse> getByShareToken(java.util.UUID shareToken) {
+        return eventRepository.findByShareToken(shareToken)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Événement public", shareToken.toString())))
+                .flatMap(this::enrichEvent);
+    }
+
     // ----------------------------------------------------------------
     // Création (BDE/Admin uniquement — géré par SecurityConfig)
     // ----------------------------------------------------------------
@@ -226,6 +233,7 @@ public class EventService {
                         .organisateurNom(t.getT3())
                         .status(event.getStatus())
                         .maxParticipants(event.getMaxParticipants())
+                        .shareToken(event.getShareToken())
                         .participantCount(t.getT4())
                         .createdAt(event.getCreatedAt())
                         .updatedAt(event.getUpdatedAt())

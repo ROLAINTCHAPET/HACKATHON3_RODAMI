@@ -7,7 +7,7 @@
 -- Utilisation de guillemets simples pour compatibilité R2DBC
 DO 'BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = ''user_role'') THEN
-    CREATE TYPE user_role AS ENUM (''ADMIN'', ''BDE'', ''USER'');
+    CREATE TYPE user_role AS ENUM (''ADMIN'', ''BDE'', ''USER'', ''GUEST'');
   END IF;
 END';
 
@@ -121,6 +121,8 @@ CREATE TABLE IF NOT EXISTS events (
   association_id  BIGINT         REFERENCES associations(id),
   status          event_status   NOT NULL DEFAULT 'DRAFT',
   max_participants INT,
+  share_token     UUID           UNIQUE DEFAULT gen_random_uuid(), -- TWIST 08 : Partage public
+  is_flash        BOOLEAN        NOT NULL DEFAULT FALSE, -- TWIST 04
   created_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );

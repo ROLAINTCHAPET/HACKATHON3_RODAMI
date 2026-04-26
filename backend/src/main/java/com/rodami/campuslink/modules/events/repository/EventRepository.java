@@ -69,4 +69,7 @@ public interface EventRepository extends ReactiveCrudRepository<Event, Long> {
     /** Nombre de participants inscrits à un événement */
     @Query("SELECT COUNT(*) FROM event_registrations WHERE event_id = :eventId")
     Mono<Long> countParticipants(Long eventId);
+
+    /** Recherche par token de partage public (TWIST 08) */
+    Mono<Event> findByShareToken(java.util.UUID shareToken);
 }

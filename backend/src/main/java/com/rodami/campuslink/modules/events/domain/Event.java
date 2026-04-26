@@ -57,6 +57,9 @@ public class Event {
     @Column("max_participants")
     private Integer maxParticipants;
 
+    @Column("share_token")
+    private java.util.UUID shareToken; // TWIST 08 : Identifiant secret pour partage public
+
     @Column("is_flash")
     private Boolean isFlash; // Twist 04 : Événement court (< 1h) pour navetteurs
     

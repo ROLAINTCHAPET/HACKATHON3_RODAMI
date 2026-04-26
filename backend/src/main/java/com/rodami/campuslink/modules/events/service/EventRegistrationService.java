@@ -59,6 +59,14 @@ public class EventRegistrationService {
                 .doOnSuccess(r -> log.info("[EVENTS] Inscription: userId={} → eventId={}", userId, eventId));
     }
 
+    /** TWIST 08 : Inscription via token public */
+    @Transactional
+    public Mono<RegistrationResponse> registerByShareToken(java.util.UUID shareToken, Long userId) {
+        return eventRepository.findByShareToken(shareToken)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Événement public", shareToken.toString())))
+                .flatMap(event -> register(event.getId(), userId));
+    }
+
     // ----------------------------------------------------------------
     // Se désinscrire
     // ----------------------------------------------------------------
