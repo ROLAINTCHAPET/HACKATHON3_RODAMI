@@ -251,3 +251,15 @@ INSERT INTO interest_catalog (tag, category, emoji, display_order) VALUES
   ('Jeux de société','Social', '🎲', 44),
   ('Gaming',      'Social', '🎮', 45)
 ON CONFLICT (tag) DO NOTHING;
+
+-- ===== Utilisateur Admin par défaut (Module 2) =====
+INSERT INTO users (id, nom, prenom, email, role) VALUES
+  (1, 'Admin', 'CampusLink', 'admin@campuslink.fr', 'ADMIN')
+ON CONFLICT (id) DO NOTHING;
+
+-- Mettre à jour la séquence pour éviter les conflits lors des futurs inserts
+SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 1));
+
+INSERT INTO profile_contexts (user_id, filiere, annee, statut) VALUES
+  (1, 'Administration', 5, 'PERSONNEL')
+ON CONFLICT (user_id) DO NOTHING;

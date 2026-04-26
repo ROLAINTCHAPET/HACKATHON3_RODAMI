@@ -2,8 +2,8 @@ package com.rodami.campuslink.modules.matching.service;
 
 import com.rodami.campuslink.common.exception.ResourceNotFoundException;
 import com.rodami.campuslink.modules.matching.dto.UserProfile;
-import com.rodami.campuslink.modules.matching.repository.InterestRepository;
-import com.rodami.campuslink.modules.matching.repository.UserRepository;
+import com.rodami.campuslink.profile.repository.InterestRepository;
+import com.rodami.campuslink.profile.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,7 +65,7 @@ public class RecommendationService {
     private Flux<Long> getCachedUserIds(String cacheKey) {
         return redisTemplate.opsForList()
                 .range(cacheKey, 0, -1)
-                .filter(s -> !s.isEmpty())
+                .filter(s -> s != null && !s.isEmpty())
                 .map(Long::parseLong);
     }
 
@@ -73,7 +73,7 @@ public class RecommendationService {
         return interestRepository.findRecommendedUserIds(userId, pullMaxResults)
                 .collectList()
                 .flatMapMany(ids -> {
-                    if (ids.isEmpty()) {
+                    if (ids == null || ids.isEmpty()) {
                         return Flux.empty();
                     }
                     // Mise en cache Redis (expire après TTL)

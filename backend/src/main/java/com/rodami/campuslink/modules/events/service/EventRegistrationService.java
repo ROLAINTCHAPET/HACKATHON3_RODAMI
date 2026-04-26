@@ -1,11 +1,11 @@
 package com.rodami.campuslink.modules.events.service;
 
 import com.rodami.campuslink.common.exception.ResourceNotFoundException;
-import com.rodami.campuslink.modules.events.domain.EventRegistration;
+import com.rodami.campuslink.profile.entity.EventRegistration;
 import com.rodami.campuslink.modules.events.dto.RegistrationResponse;
-import com.rodami.campuslink.modules.events.repository.EventRegistrationRepository;
+import com.rodami.campuslink.profile.repository.EventRegistrationRepository;
 import com.rodami.campuslink.modules.events.repository.EventRepository;
-import com.rodami.campuslink.modules.matching.repository.UserRepository;
+import com.rodami.campuslink.profile.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,14 +49,13 @@ public class EventRegistrationService {
                                             return Mono.error(new IllegalArgumentException(
                                                     "L'événement est complet (max " + event.getMaxParticipants() + " participants)"));
                                         }
-                                        EventRegistration reg = EventRegistration.builder()
-                                                .eventId(eventId)
-                                                .userId(userId)
-                                                .build();
+                                        EventRegistration reg = new EventRegistration();
+                                        reg.setEventId(eventId);
+                                        reg.setUserId(userId);
                                         return registrationRepository.save(reg);
                                     }));
                 })
-                .flatMap(reg -> enrichRegistration(reg))
+                .flatMap(this::enrichRegistration)
                 .doOnSuccess(r -> log.info("[EVENTS] Inscription: userId={} → eventId={}", userId, eventId));
     }
 
@@ -111,7 +110,7 @@ public class EventRegistrationService {
                 .defaultIfEmpty("—");
 
         Mono<String> userNomMono = userRepository.findById(reg.getUserId())
-                .map(u -> u.getPrenom() + " " + u.getNom())
+                .map(u -> (u.getPrenom() != null ? u.getPrenom() : "") + " " + (u.getNom() != null ? u.getNom() : ""))
                 .defaultIfEmpty("Inconnu");
 
         return Mono.zip(eventTitreMono, userNomMono)

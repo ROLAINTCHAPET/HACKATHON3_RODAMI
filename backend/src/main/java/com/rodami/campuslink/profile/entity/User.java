@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
@@ -22,14 +23,23 @@ public class User {
 
     @Id
     private Long id;
+
+    @Column("firebase_uid")
     private String firebaseUid;
+
     private String nom;
     private String prenom;
     private String email;
+
+    @Column("password_hash")
     private String passwordHash;
+
     @Builder.Default
     private String role = "USER";
+    @Column("created_at")
     private Instant createdAt;
+
+    @Column("updated_at")
     private Instant updatedAt;
 
     /**

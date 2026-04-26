@@ -33,20 +33,26 @@ public class SecurityConfig {
                 .pathMatchers("/actuator/**").permitAll()
                 // Swagger UI & OpenAPI
                 .pathMatchers("/webjars/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                // Auth publique
+                // Auth publique (login + dev-token)
                 .pathMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
                 // Onboarding public (inscription + profil en un flow)
                 .pathMatchers(HttpMethod.POST, "/api/profiles/onboard").permitAll()
+                // Inscription utilisateur (Module Matching)
+                .pathMatchers(HttpMethod.POST, "/api/users").permitAll()
                 // Catalogue d'intérêts public (nécessaire pour l'onboarding)
                 .pathMatchers(HttpMethod.GET, "/api/interests/catalog").permitAll()
                 // Lecture événements publique
                 .pathMatchers(HttpMethod.GET, "/api/events/**").permitAll()
-                // Création/modification événements — BDE ou Admin
-                .pathMatchers(HttpMethod.POST, "/api/events/**").hasAnyRole("BDE", "ADMIN")
-                .pathMatchers(HttpMethod.PUT,  "/api/events/**").hasAnyRole("BDE", "ADMIN")
-                .pathMatchers(HttpMethod.DELETE,"/api/events/**").hasAnyRole("BDE", "ADMIN")
+                .pathMatchers(HttpMethod.GET, "/api/categories").permitAll()
+                // Création/modification/publication événements — BDE ou Admin
+                .pathMatchers(HttpMethod.POST,  "/api/events/**").hasAnyRole("BDE", "ADMIN")
+                .pathMatchers(HttpMethod.PUT,   "/api/events/**").hasAnyRole("BDE", "ADMIN")
+                .pathMatchers(HttpMethod.PATCH, "/api/events/**").hasAnyRole("BDE", "ADMIN")
+                .pathMatchers(HttpMethod.DELETE, "/api/events/**").hasAnyRole("BDE", "ADMIN")
                 // Gouvernance — Admin ou BDE
                 .pathMatchers("/api/governance/**").hasAnyRole("BDE", "ADMIN")
+                // Mise en relation (Matching) — Authentifié
+                .pathMatchers("/api/users/**", "/api/connections/**").authenticated()
                 // Tout le reste authentifié
                 .anyExchange().authenticated()
             )

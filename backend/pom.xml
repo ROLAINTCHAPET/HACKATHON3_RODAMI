@@ -101,11 +101,7 @@
       <optional>true</optional>
     </dependency>
 
-<<<<<<< HEAD
-    <!-- ===== SPRINGDOC / SWAGGER ===== -->
-=======
     <!-- ===== SWAGGER / OPENAPI (WebFlux) ===== -->
->>>>>>> Mich
     <dependency>
       <groupId>org.springdoc</groupId>
       <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>

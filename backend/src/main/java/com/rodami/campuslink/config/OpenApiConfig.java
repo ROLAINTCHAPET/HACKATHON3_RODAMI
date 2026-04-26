@@ -2,7 +2,6 @@ package com.rodami.campuslink.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
-<<<<<<< HEAD
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
@@ -33,8 +32,10 @@ public class OpenApiConfig {
                             **API réactive** (Spring WebFlux) du système de mise en relation contextuelle CampusLink.
                             
                             ## Modules disponibles
-                            - 🔗 **Mise en Relation** — profils, intérêts, connexions, flux PULL/PUSH
+                            - 👤 **Profils** — onboarding, 3 couches de profil, cold start
+                            - 🔗 **Mise en Relation** — intérêts, connexions, flux PULL/PUSH
                             - 📅 **Gestion des Événements** — CRUD événements, inscriptions, priorité BDE
+                            - 🏛️ **Gouvernance** — règles Admin/BDE, audit logs, impact social
                             
                             ## Authentification
                             Toutes les routes protégées nécessitent un **Bearer JWT** dans le header `Authorization`.
@@ -68,34 +69,5 @@ public class OpenApiConfig {
                                         .scheme("bearer")
                                         .bearerFormat("JWT")
                                         .description("Token JWT généré par Firebase Auth ou Spring Security")));
-=======
-import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.security.SecurityRequirement;
-import io.swagger.v3.oas.models.security.SecurityScheme;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
-@Configuration
-public class OpenApiConfig {
-
-    @Bean
-    public OpenAPI campusLinkOpenAPI() {
-        return new OpenAPI()
-            .info(new Info()
-                .title("CampusLink API — Module Profils")
-                .description("Documentation des endpoints pour la gestion des profils (Module 1)")
-                .version("1.0.0"))
-            .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
-            .components(new Components()
-                .addSecuritySchemes("Bearer Authentication", createSecurityScheme()));
-    }
-
-    private SecurityScheme createSecurityScheme() {
-        return new SecurityScheme()
-            .name("Bearer Authentication")
-            .type(SecurityScheme.Type.HTTP)
-            .scheme("bearer")
-            .bearerFormat("JWT");
->>>>>>> Mich
     }
 }

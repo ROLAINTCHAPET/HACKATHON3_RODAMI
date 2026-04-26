@@ -6,7 +6,7 @@ import com.rodami.campuslink.governance.entity.AuditLog;
 import com.rodami.campuslink.governance.entity.GovernanceRule;
 import com.rodami.campuslink.governance.repository.AssociationRepository;
 import com.rodami.campuslink.governance.repository.AuditLogRepository;
-import com.rodami.campuslink.governance.repository.EventRepository;
+import com.rodami.campuslink.modules.events.repository.EventRepository;
 import com.rodami.campuslink.governance.repository.GovernanceRuleRepository;
 import com.rodami.campuslink.profile.repository.ConnectionRepository;
 import com.rodami.campuslink.profile.repository.EventRegistrationRepository;

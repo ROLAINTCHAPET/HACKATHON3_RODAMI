@@ -6,13 +6,17 @@ import com.rodami.campuslink.modules.matching.dto.UserRequest;
 import com.rodami.campuslink.modules.matching.service.ConnectionService;
 import com.rodami.campuslink.modules.matching.service.RecommendationService;
 import com.rodami.campuslink.modules.matching.service.UserService;
+import com.rodami.campuslink.profile.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
+
+import java.util.Map;
 
 import static org.springframework.web.reactive.function.server.ServerResponse.*;
 
@@ -28,6 +32,7 @@ public class MatchingHandler {
     private final UserService userService;
     private final RecommendationService recommendationService;
     private final ConnectionService connectionService;
+    private final UserRepository userRepository;
 
     // ================================================================
     // USERS
@@ -61,8 +66,8 @@ public class MatchingHandler {
     /** GET /api/users/{id}/interests — Intérêts d'un utilisateur */
     public Mono<ServerResponse> getInterests(ServerRequest req) {
         Long userId = Long.parseLong(req.pathVariable("id"));
-        return ok().body(userService.getInterests(userId), 
-                com.rodami.campuslink.modules.matching.domain.Interest.class)
+        return ok().body(userService.getInterests(userId),
+                com.rodami.campuslink.profile.entity.Interest.class)
                 .onErrorResume(this::handleError);
     }
 
@@ -170,24 +175,35 @@ public class MatchingHandler {
     // Utilitaires
     // ================================================================
 
-    /** Récupère l'ID de l'utilisateur authentifié depuis le contexte de sécurité */
+    /**
+     * Résout le userId à partir de l'email stocké dans le subject JWT.
+     * Compatible avec le JwtUtil du Module 1 qui met l'email comme subject.
+     */
     private Mono<Long> getAuthenticatedUserId() {
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> ctx.getAuthentication().getName())
-                .map(Long::parseLong)
+                .flatMap(emailOrId -> {
+                    try {
+                        return Mono.just(Long.parseLong(emailOrId));
+                    } catch (NumberFormatException e) {
+                        return userRepository.findByEmail(emailOrId)
+                                .map(user -> user.getId())
+                                .switchIfEmpty(Mono.just(-1L));
+                    }
+                })
                 .onErrorReturn(-1L);
     }
 
     private Mono<ServerResponse> handleError(Throwable ex) {
         log.error("[Matching] Erreur : {}", ex.getMessage());
         if (ex instanceof com.rodami.campuslink.common.exception.ResourceNotFoundException) {
-            return status(org.springframework.http.HttpStatus.NOT_FOUND)
-                    .bodyValue(java.util.Map.of("error", ex.getMessage()));
+            return status(HttpStatus.NOT_FOUND)
+                    .bodyValue(Map.of("error", ex.getMessage()));
         }
         if (ex instanceof IllegalArgumentException) {
-            return badRequest().bodyValue(java.util.Map.of("error", ex.getMessage()));
+            return badRequest().bodyValue(Map.of("error", ex.getMessage()));
         }
-        return status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
-                .bodyValue(java.util.Map.of("error", "Erreur interne"));
+        return status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .bodyValue(Map.of("error", "Erreur interne"));
     }
 }

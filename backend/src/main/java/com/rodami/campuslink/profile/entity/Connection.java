@@ -26,6 +26,9 @@ public class Connection {
     @Column("source_event_id")
     private Long sourceEventId;
 
+    @Column("created_at")
+    private Instant createdAt;
+
     @Column("updated_at")
     private Instant updatedAt;
 }

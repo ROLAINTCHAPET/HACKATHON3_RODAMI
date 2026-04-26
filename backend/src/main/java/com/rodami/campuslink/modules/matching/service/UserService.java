@@ -1,16 +1,16 @@
 package com.rodami.campuslink.modules.matching.service;
 
 import com.rodami.campuslink.common.exception.ResourceNotFoundException;
-import com.rodami.campuslink.modules.matching.domain.Interest;
-import com.rodami.campuslink.modules.matching.domain.ProfileContext;
-import com.rodami.campuslink.modules.matching.domain.User;
+import com.rodami.campuslink.profile.entity.Interest;
+import com.rodami.campuslink.profile.entity.ProfileContext;
+import com.rodami.campuslink.profile.entity.User;
 import com.rodami.campuslink.modules.matching.dto.InterestRequest;
 import com.rodami.campuslink.modules.matching.dto.UserProfile;
 import com.rodami.campuslink.modules.matching.dto.UserRequest;
-import com.rodami.campuslink.modules.matching.repository.ConnectionRepository;
-import com.rodami.campuslink.modules.matching.repository.InterestRepository;
-import com.rodami.campuslink.modules.matching.repository.ProfileContextRepository;
-import com.rodami.campuslink.modules.matching.repository.UserRepository;
+import com.rodami.campuslink.profile.repository.ConnectionRepository;
+import com.rodami.campuslink.profile.repository.InterestRepository;
+import com.rodami.campuslink.profile.repository.ProfileContextRepository;
+import com.rodami.campuslink.profile.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,6 +41,7 @@ public class UserService {
                                 .defaultIfEmpty(new ProfileContext()),
                         interestRepository.findByUserId(userId).collectList(),
                         connectionRepository.countAcceptedConnectionsByUserId(userId)
+                                .defaultIfEmpty(0L)
                 ).map(tuple -> buildProfile(user, tuple.getT1(), tuple.getT2(), tuple.getT3())));
     }
 
@@ -49,20 +50,34 @@ public class UserService {
     // ----------------------------------------------------------------
     @Transactional
     public Mono<UserProfile> createUser(UserRequest request) {
+        String firebaseUid = (request.getFirebaseUid() == null || request.getFirebaseUid().isBlank()) ? null : request.getFirebaseUid();
+
         return userRepository.existsByEmail(request.getEmail())
                 .flatMap(exists -> {
                     if (exists) {
                         return Mono.error(new IllegalArgumentException("Email déjà utilisé : " + request.getEmail()));
                     }
+                    if (firebaseUid != null) {
+                        return userRepository.existsByFirebaseUid(firebaseUid)
+                                .flatMap(existsUid -> {
+                                    if (existsUid) {
+                                        return Mono.error(new IllegalArgumentException("Firebase UID déjà utilisé : " + firebaseUid));
+                                    }
+                                    return Mono.just(false);
+                                });
+                    }
+                    return Mono.just(false);
+                })
+                .then(Mono.defer(() -> {
                     User user = User.builder()
                             .nom(request.getNom())
                             .prenom(request.getPrenom())
                             .email(request.getEmail())
-                            .firebaseUid(request.getFirebaseUid())
+                            .firebaseUid(firebaseUid)
                             .role("USER")
                             .build();
                     return userRepository.save(user);
-                })
+                }))
                 .flatMap(savedUser -> {
                     ProfileContext ctx = ProfileContext.builder()
                             .userId(savedUser.getId())
@@ -71,23 +86,21 @@ public class UserService {
                             .statut(request.getStatut() != null ? request.getStatut() : "ETUDIANT")
                             .build();
 
-                    Mono<ProfileContext> saveCtx = profileContextRepository.save(ctx);
-
-                    Flux<Interest> saveInterests = Flux.empty();
-                    if (request.getInterests() != null && !request.getInterests().isEmpty()) {
-                        saveInterests = Flux.fromIterable(request.getInterests())
-                                .map(ir -> Interest.builder()
-                                        .userId(savedUser.getId())
-                                        .tag(ir.getTag().toLowerCase().trim())
-                                        .category(ir.getCategory())
-                                        .build())
-                                .flatMap(interestRepository::save);
-                    }
-
-                    return Mono.zip(
-                            saveCtx,
-                            saveInterests.collectList()
-                    ).map(tuple -> buildProfile(savedUser, tuple.getT1(), tuple.getT2(), 0L));
+                    return profileContextRepository.save(ctx)
+                            .then(Mono.defer(() -> {
+                                if (request.getInterests() != null && !request.getInterests().isEmpty()) {
+                                    return Flux.fromIterable(request.getInterests())
+                                            .map(ir -> Interest.builder()
+                                                    .userId(savedUser.getId())
+                                                    .tag(ir.getTag().toLowerCase().trim())
+                                                    .category(ir.getCategory())
+                                                    .build())
+                                            .flatMap(interestRepository::save)
+                                            .collectList();
+                                }
+                                return Mono.just(List.<Interest>of());
+                            }))
+                            .map(interests -> buildProfile(savedUser, ctx, interests, 0L));
                 });
     }
 
@@ -142,20 +155,20 @@ public class UserService {
     }
 
     // ----------------------------------------------------------------
-    // Utilitaire — construction du DTO UserProfile
+    // Utilitaire — construction du DTO UserProfile (null-safe TWIST 02)
     // ----------------------------------------------------------------
     private UserProfile buildProfile(User user, ProfileContext ctx, List<Interest> interests, Long connectionCount) {
         return UserProfile.builder()
                 .id(user.getId())
-                .nom(user.getNom())
-                .prenom(user.getPrenom())
+                .nom(user.getNom() != null ? user.getNom() : "")
+                .prenom(user.getPrenom() != null ? user.getPrenom() : "")
                 .email(user.getEmail())
-                .role(user.getRole())
-                .filiere(ctx.getFiliere())
-                .annee(ctx.getAnnee())
-                .statut(ctx.getStatut())
-                .interests(interests.stream().map(Interest::getTag).toList())
-                .connectionCount(connectionCount)
+                .role(user.getRole() != null ? user.getRole() : "USER")
+                .filiere(ctx != null ? ctx.getFiliere() : null)
+                .annee(ctx != null ? ctx.getAnnee() : null)
+                .statut(ctx != null && ctx.getStatut() != null ? ctx.getStatut() : "ETUDIANT")
+                .interests(interests != null ? interests.stream().map(Interest::getTag).toList() : List.of())
+                .connectionCount(connectionCount != null ? connectionCount : 0L)
                 .createdAt(user.getCreatedAt())
                 .build();
     }

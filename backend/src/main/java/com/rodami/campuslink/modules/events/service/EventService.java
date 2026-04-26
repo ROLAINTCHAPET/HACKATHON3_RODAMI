@@ -7,7 +7,7 @@ import com.rodami.campuslink.modules.events.dto.EventRequest;
 import com.rodami.campuslink.modules.events.dto.EventResponse;
 import com.rodami.campuslink.modules.events.repository.EventCategoryRepository;
 import com.rodami.campuslink.modules.events.repository.EventRepository;
-import com.rodami.campuslink.modules.matching.repository.UserRepository;
+import com.rodami.campuslink.profile.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -101,7 +101,6 @@ public class EventService {
         return eventRepository.findById(eventId)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Événement", eventId)))
                 .flatMap(event -> {
-                    // Seul l'organisateur peut modifier son événement (ou un Admin → géré par le rôle)
                     event.setTitre(request.getTitre());
                     event.setDescription(request.getDescription());
                     event.setDateDebut(request.getDateDebut());
@@ -156,7 +155,7 @@ public class EventService {
     }
 
     // ----------------------------------------------------------------
-    // Utilitaire — enrichissement de la réponse (catégorie + organisateur + compteur)
+    // Utilitaire — enrichissement de la réponse
     // ----------------------------------------------------------------
     private Mono<EventResponse> enrichEvent(Event event) {
         Mono<String> categoryNomMono = event.getCategoryId() != null
@@ -172,7 +171,7 @@ public class EventService {
                 : Mono.just((short) 0);
 
         Mono<String> organisateurNomMono = userRepository.findById(event.getOrganisateurId())
-                .map(u -> u.getPrenom() + " " + u.getNom())
+                .map(u -> (u.getPrenom() != null ? u.getPrenom() : "") + " " + (u.getNom() != null ? u.getNom() : ""))
                 .defaultIfEmpty("Inconnu");
 
         Mono<Long> countMono = eventRepository.countParticipants(event.getId())

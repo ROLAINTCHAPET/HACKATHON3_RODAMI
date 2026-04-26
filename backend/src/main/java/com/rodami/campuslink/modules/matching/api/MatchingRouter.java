@@ -1,6 +1,6 @@
 package com.rodami.campuslink.modules.matching.api;
 
-import com.rodami.campuslink.modules.matching.domain.Interest;
+import com.rodami.campuslink.profile.entity.Interest;
 import com.rodami.campuslink.modules.matching.dto.ConnectionRequest;
 import com.rodami.campuslink.modules.matching.dto.ConnectionResponse;
 import com.rodami.campuslink.modules.matching.dto.InterestRequest;

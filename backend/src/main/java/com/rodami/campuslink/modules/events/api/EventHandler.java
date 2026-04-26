@@ -3,6 +3,7 @@ package com.rodami.campuslink.modules.events.api;
 import com.rodami.campuslink.modules.events.dto.EventRequest;
 import com.rodami.campuslink.modules.events.service.EventRegistrationService;
 import com.rodami.campuslink.modules.events.service.EventService;
+import com.rodami.campuslink.profile.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,7 @@ public class EventHandler {
 
     private final EventService eventService;
     private final EventRegistrationService registrationService;
+    private final UserRepository userRepository;
 
     // ================================================================
     // EVENTS — Lecture (publique)
@@ -154,7 +156,6 @@ public class EventHandler {
 
     /**
      * GET /api/events/{id}/co-participants — co-participants (pour suggérer des connexions).
-     * Intégration avec le module Matching.
      */
     public Mono<ServerResponse> getCoParticipants(ServerRequest req) {
         Long eventId = Long.parseLong(req.pathVariable("id"));
@@ -168,10 +169,24 @@ public class EventHandler {
     // Utilitaires
     // ================================================================
 
+    /**
+     * Résout le userId à partir de l'email stocké dans le subject JWT.
+     * Compatible avec le JwtUtil du Module 1 qui met l'email comme subject.
+     */
     private Mono<Long> getAuthenticatedUserId() {
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> ctx.getAuthentication().getName())
-                .map(Long::parseLong)
+                .flatMap(emailOrId -> {
+                    // Essayer d'abord de parser comme Long (cas où le subject = userId)
+                    try {
+                        return Mono.just(Long.parseLong(emailOrId));
+                    } catch (NumberFormatException e) {
+                        // Le subject est un email — résoudre le userId depuis la base
+                        return userRepository.findByEmail(emailOrId)
+                                .map(user -> user.getId())
+                                .switchIfEmpty(Mono.just(-1L));
+                    }
+                })
                 .onErrorReturn(-1L);
     }
 
