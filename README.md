@@ -10,10 +10,12 @@ Le projet suit une architecture **Client-Serveur** moderne, découplée et enti�
 
 ```mermaid
 graph TD
-    Client[Frontend: Next.js] -->|API REST / JSON| Server[Backend: Spring Boot WebFlux]
+    Client[Frontend: Next.js] -->|Auth| Firebase[Firebase Auth]
+    Client -->|API REST / JSON| Server[Backend: Spring Boot WebFlux]
+    Firebase -->|JWT ID Token| Client
+    Client -->|Bearer JWT| Server
     Server -->|R2DBC| DB[(PostgreSQL)]
     Server -->|Reactive Redis| Cache[(Redis)]
-    Server -->|Auth| Security[JWT + BCrypt]
 ```
 
 ---
@@ -26,7 +28,7 @@ Le backend est un **Monolithe Modulaire** réactif construit avec **Spring Boot 
 - **Core** : Java 17, Spring WebFlux (Netty)
 - **Persistence** : R2DBC (PostgreSQL réactif)
 - **Cache** : Redis (Lettuce réactif)
-- **Sécurité** : Spring Security, JWT (jjwt)
+- **Sécurité & Auth** : Spring Security, Firebase Admin (Validation JWT)
 - **Documentation** : SpringDoc OpenAPI (Swagger)
 - **Utilitaires** : Lombok, MapStruct
 
@@ -43,6 +45,7 @@ Le frontend est une application SPA/SSR moderne construite avec **Next.js 16**.
 
 ### Stack Technique
 - **Framework** : React 19, Next.js (App Router)
+- **Authentification** : Firebase Auth (Client-side)
 - **Styling** : Tailwind CSS 4.0
 - **Icons** : Lucide React
 - **API Client** : Client TypeScript auto-généré via OpenAPI Generator.
