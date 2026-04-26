@@ -8,6 +8,7 @@ import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -22,6 +23,9 @@ import java.util.List;
 public class OpenApiConfig {
 
     private static final String SECURITY_SCHEME_NAME = "BearerAuth";
+    
+    @Value("${RENDER_EXTERNAL_URL:https://campuslink-backend.onrender.com}")
+    private String productionUrl;
 
     @Bean
     public OpenAPI campusLinkOpenAPI() {
@@ -58,6 +62,7 @@ public class OpenApiConfig {
                                 .name("MIT")
                                 .url("https://opensource.org/licenses/MIT")))
                 .servers(List.of(
+                        new Server().url(productionUrl).description("Production (Render)"),
                         new Server().url("http://localhost:8080").description("Développement local"),
                         new Server().url("http://backend:8080").description("Docker interne")))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
