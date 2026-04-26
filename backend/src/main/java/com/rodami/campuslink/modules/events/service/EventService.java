@@ -32,7 +32,7 @@ public class EventService {
 
     /** Tous les événements publiés, triés par priorité BDE puis date */
     public Flux<EventResponse> getAllPublished() {
-        return eventRepository.findAllPublished()
+        return eventRepository.findAllPublished(Instant.now())
                 .flatMap(this::enrichEvent);
     }
 
@@ -44,7 +44,7 @@ public class EventService {
 
     /** Événements d'une catégorie */
     public Flux<EventResponse> getByCategory(Long categoryId) {
-        return eventRepository.findByCategoryId(categoryId)
+        return eventRepository.findByCategoryId(categoryId, Instant.now())
                 .flatMap(this::enrichEvent);
     }
 
@@ -130,11 +130,39 @@ public class EventService {
         return eventRepository.findById(eventId)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Événement", eventId)))
                 .flatMap(event -> {
+                    // TWIST 05 : Validation stricte pour la publication
+                    if ("PUBLISHED".equals(newStatus)) {
+                        validateEventCompleteness(event);
+                    }
                     event.setStatus(newStatus);
                     return eventRepository.save(event);
                 })
                 .flatMap(this::enrichEvent)
                 .doOnSuccess(e -> log.info("[EVENTS] Statut changé id={} → {}", e.getId(), newStatus));
+    }
+
+    /**
+     * TWIST 05 : Nettoyage automatique des événements obsolètes.
+     * Appelé par le scheduler.
+     */
+    public Mono<Long> processPastEvents() {
+        return eventRepository.markPastEvents(Instant.now())
+                .count()
+                .doOnSuccess(count -> {
+                    if (count > 0) log.info("[TWIST 05] {} événements obsolètes archivés (status=PAST).", count);
+                });
+    }
+
+    private void validateEventCompleteness(Event event) {
+        if (event.getDescription() == null || event.getDescription().isBlank()) {
+            throw new IllegalArgumentException("TWIST 05 : Impossible de publier un événement sans description.");
+        }
+        if (event.getLieu() == null || event.getLieu().isBlank()) {
+            throw new IllegalArgumentException("TWIST 05 : Impossible de publier un événement sans lieu.");
+        }
+        if (event.getCategoryId() == null) {
+            throw new IllegalArgumentException("TWIST 05 : Impossible de publier un événement sans catégorie.");
+        }
     }
 
     // ----------------------------------------------------------------

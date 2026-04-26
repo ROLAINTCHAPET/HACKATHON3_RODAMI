@@ -58,6 +58,17 @@ class EventServiceTest {
     }
 
     @Test
+    @DisplayName("publish — Échec car données incomplètes (TWIST 05)")
+    void publish_fail_incomplete() {
+        when(eventRepository.findById(1L)).thenReturn(Mono.just(testEvent)); // description/lieu sont null par défaut dans testEvent
+        
+        StepVerifier.create(eventService.publish(1L))
+                .expectErrorMatches(throwable -> throwable instanceof IllegalArgumentException && 
+                        throwable.getMessage().contains("TWIST 05"))
+                .verify();
+    }
+
+    @Test
     @DisplayName("createEvent — Succès")
     void createEvent_success() {
         EventRequest request = EventRequest.builder()
@@ -77,9 +88,14 @@ class EventServiceTest {
     }
 
     @Test
-    @DisplayName("publish — Succès")
+    @DisplayName("publish — Succès (Données complètes)")
     void publish_success() {
+        testEvent.setDescription("Une description complète");
+        testEvent.setLieu("Amphi A");
+        testEvent.setCategoryId(1L);
+
         when(eventRepository.findById(1L)).thenReturn(Mono.just(testEvent));
+        when(categoryRepository.findById(anyLong())).thenReturn(Mono.empty());
         stubEnrichEvent();
         
         Event publishedEvent = testEvent.toBuilder().status("PUBLISHED").build();

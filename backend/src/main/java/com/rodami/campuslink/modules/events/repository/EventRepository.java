@@ -16,18 +16,18 @@ public interface EventRepository extends ReactiveCrudRepository<Event, Long> {
     @Query("""
         SELECT e.* FROM events e
         LEFT JOIN event_categories ec ON e.category_id = ec.id
-        WHERE e.status = 'PUBLISHED'
+        WHERE e.status = 'PUBLISHED' AND e.date_debut >= :now
         ORDER BY ec.priorite DESC NULLS LAST, e.date_debut ASC
         """)
-    Flux<Event> findAllPublished();
+    Flux<Event> findAllPublished(Instant now);
 
     /** Événements publiés d'une catégorie */
     @Query("""
         SELECT * FROM events
-        WHERE status = 'PUBLISHED' AND category_id = :categoryId
+        WHERE status = 'PUBLISHED' AND category_id = :categoryId AND date_debut >= :now
         ORDER BY date_debut ASC
         """)
-    Flux<Event> findByCategoryId(Long categoryId);
+    Flux<Event> findByCategoryId(Long categoryId, Instant now);
 
     /** Événements à venir (date_debut >= maintenant) */
     @Query("""
