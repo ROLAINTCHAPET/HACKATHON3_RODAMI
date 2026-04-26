@@ -14,6 +14,7 @@ RUN mvn dependency:go-offline -q
 
 # Copier les sources et compiler
 COPY src ./src
+COPY sujet9 ./sujet9
 RUN mvn clean package -DskipTests -q
 
 # ---- Stage 2: Runtime ----
@@ -25,6 +26,7 @@ RUN addgroup -S campuslink && adduser -S campuslink -G campuslink
 USER campuslink
 
 COPY --from=builder /app/target/*.jar app.jar
+COPY --from=builder /app/sujet9 ./sujet9
 
 EXPOSE 8080
 

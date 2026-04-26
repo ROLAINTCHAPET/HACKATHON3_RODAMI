@@ -11,6 +11,7 @@ import com.rodami.campuslink.profile.repository.UserRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,7 +43,8 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class Sujet9IngestionConfig {
 
-    private final String DATA_PATH = "/home/tchoungs/Bureau/RODAMI/HACKATHON3_RODAMI/sujet9/";
+    @Value("${sujet9.data.path:sujet9/}")
+    private String dataPath;
 
     @Bean
     @Profile("!test")
@@ -77,7 +79,7 @@ public class Sujet9IngestionConfig {
 
     private Mono<Void> ingestStudents(UserService userService) {
         return Mono.fromCallable(() -> {
-            FileSystemResource res = new FileSystemResource(DATA_PATH + "etudiants.csv");
+            FileSystemResource res = new FileSystemResource(dataPath + "etudiants.csv");
             try (BufferedReader br = new BufferedReader(new InputStreamReader(res.getInputStream()))) {
                 return br.lines().skip(1).toList();
             }
@@ -115,7 +117,7 @@ public class Sujet9IngestionConfig {
 
     private Mono<Void> ingestAssociationsAndEvents(R2dbcEntityTemplate template, EventRepository eventRepository, ObjectMapper objectMapper) {
         return Mono.fromCallable(() -> {
-            FileSystemResource res = new FileSystemResource(DATA_PATH + "associations_evenements.json");
+            FileSystemResource res = new FileSystemResource(dataPath + "associations_evenements.json");
             return objectMapper.readValue(res.getInputStream(), Sujet9Data.class);
         }).flatMap(data -> {
             // 1. Importer les associations
@@ -162,7 +164,7 @@ public class Sujet9IngestionConfig {
 
     private Mono<Void> ingestIcs(R2dbcEntityTemplate template) {
         return Mono.fromCallable(() -> {
-            FileSystemResource res = new FileSystemResource(DATA_PATH + "ETU0001.ics");
+            FileSystemResource res = new FileSystemResource(dataPath + "ETU0001.ics");
             if (!res.exists()) return "";
             try (BufferedReader br = new BufferedReader(new InputStreamReader(res.getInputStream()))) {
                 StringBuilder sb = new StringBuilder();
