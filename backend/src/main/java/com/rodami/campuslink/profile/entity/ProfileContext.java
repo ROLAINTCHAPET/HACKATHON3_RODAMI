@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
@@ -30,6 +31,10 @@ public class ProfileContext {
 
     @Builder.Default
     private String statut = "ETUDIANT";
+    
+    @Column("is_commuter")
+    private Boolean isCommuter; // Twist 04 : Navetteur (temps limité)
+    
     private Instant updatedAt;
 
     /**

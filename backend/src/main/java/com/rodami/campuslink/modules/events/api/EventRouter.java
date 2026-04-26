@@ -237,6 +237,7 @@ public class EventRouter {
     public RouterFunction<ServerResponse> eventRoutes(EventHandler handler) {
         return RouterFunctions.route()
             .GET( "/api/events",                         handler::getAllEvents)
+            .GET( "/api/events/flash",                   handler::getFlashEvents)
             .GET( "/api/events/{id}",                    handler::getEvent)
             .GET( "/api/categories",                     handler::getCategories)
             .POST(  "/api/events",                       handler::createEvent)

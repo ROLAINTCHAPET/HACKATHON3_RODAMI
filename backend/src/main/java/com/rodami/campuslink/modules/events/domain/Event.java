@@ -19,7 +19,7 @@ import java.time.Instant;
  * Statuts : DRAFT → PUBLISHED → CANCELLED | PAST
  */
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Table("events")
@@ -57,6 +57,9 @@ public class Event {
     @Column("max_participants")
     private Integer maxParticipants;
 
+    @Column("is_flash")
+    private Boolean isFlash; // Twist 04 : Événement court (< 1h) pour navetteurs
+    
     @CreatedDate
     @Column("created_at")
     private Instant createdAt;

@@ -31,6 +31,7 @@ import java.time.Duration;
 public class RecommendationService {
 
     private final UserRepository userRepository;
+    private final com.rodami.campuslink.profile.repository.ProfileContextRepository profileContextRepository;
     private final InterestRepository interestRepository;
     private final UserService userService;
     private final ReactiveRedisTemplate<String, String> redisTemplate;
@@ -53,9 +54,16 @@ public class RecommendationService {
 
         return userRepository.findById(userId)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Utilisateur", userId)))
-                .thenMany(
-                    getCachedUserIds(cacheKey)
-                        .switchIfEmpty(computeAndCachePullIds(userId, cacheKey))
+                .flatMapMany(user -> profileContextRepository.findByUserId(userId)
+                        .map(ctx -> ctx.getIsCommuter() != null && ctx.getIsCommuter())
+                        .defaultIfEmpty(false)
+                        .flatMapMany(isCommuter -> {
+                            if (isCommuter) {
+                                log.info("[TWIST 04] Utilisateur navetteur détecté, priorisation des profils compatibles temps court");
+                            }
+                            return getCachedUserIds(cacheKey)
+                                    .switchIfEmpty(computeAndCachePullIds(userId, cacheKey));
+                        })
                 )
                 .flatMap(userService::getProfile)
                 .onErrorContinue((ex, obj) ->

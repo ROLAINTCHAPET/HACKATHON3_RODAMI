@@ -157,6 +157,12 @@ public class EventService {
     // ----------------------------------------------------------------
     // Utilitaire — enrichissement de la réponse
     // ----------------------------------------------------------------
+    public Flux<EventResponse> getFlashEvents() {
+        return eventRepository.findAll()
+                .filter(e -> e.getIsFlash() != null && e.getIsFlash())
+                .flatMap(this::enrichEvent);
+    }
+
     private Mono<EventResponse> enrichEvent(Event event) {
         Mono<String> categoryNomMono = event.getCategoryId() != null
                 ? categoryRepository.findById(event.getCategoryId())

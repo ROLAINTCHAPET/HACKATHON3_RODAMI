@@ -62,7 +62,7 @@ class ProfileServiceTest {
             .build();
 
         testInterests = List.of(
-            Interest.builder().id(1L).userId(1L).tag("Programmation").category("Tech").createdAt(Instant.now()).build()
+            Interest.builder().id(1L).userId(1L).tag("Tech").category("Tech").createdAt(Instant.now()).build()
         );
     }
 
@@ -72,7 +72,7 @@ class ProfileServiceTest {
         ProfileSetupRequest request = new ProfileSetupRequest(List.of("Tech"), "Informatique", (short) 3);
         
         when(userRepository.findById(1L)).thenReturn(Mono.just(testUser));
-        when(profileContextRepository.findByUserId(1L)).thenReturn(Mono.empty());
+        when(profileContextRepository.findByUserId(1L)).thenReturn(Mono.empty(), Mono.just(testContext));
         when(profileContextRepository.save(any(ProfileContext.class))).thenReturn(Mono.just(testContext));
         when(interestRepository.saveAll(anyList())).thenReturn(Flux.fromIterable(testInterests));
         
