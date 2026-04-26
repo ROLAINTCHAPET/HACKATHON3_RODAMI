@@ -25,6 +25,7 @@ public class EventService {
     private final EventRepository eventRepository;
     private final EventCategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final com.rodami.campuslink.profile.repository.ConnectionRepository connectionRepository;
 
     // ----------------------------------------------------------------
     // Lecture
@@ -145,7 +146,14 @@ public class EventService {
                     return eventRepository.save(event);
                 })
                 .flatMap(this::enrichEvent)
-                .doOnSuccess(e -> log.info("[EVENTS] Statut changé id={} → {}", e.getId(), newStatus));
+                .doOnSuccess(e -> {
+                    log.info("[EVENTS] Statut changé id={} → {}", e.getId(), newStatus);
+                    // TWIST 09 : Si annulé, on pénalise les connexions qui en dépendaient
+                    if ("CANCELLED".equals(newStatus)) {
+                        log.warn("[TWIST 09] Événement annulé id={}. Pénalité sur les connexions liées.", e.getId());
+                        connectionRepository.penalizeConnectionsForEvent(e.getId()).subscribe();
+                    }
+                });
     }
 
     /**
@@ -179,7 +187,11 @@ public class EventService {
     public Mono<Void> deleteEvent(Long eventId) {
         return eventRepository.findById(eventId)
                 .switchIfEmpty(Mono.error(new ResourceNotFoundException("Événement", eventId)))
-                .flatMap(eventRepository::delete);
+                .flatMap(event -> {
+                    // TWIST 09 : Avant suppression, on pénalise les connexions
+                    return connectionRepository.penalizeConnectionsForEvent(eventId)
+                            .then(eventRepository.delete(event));
+                });
     }
 
     // ----------------------------------------------------------------

@@ -46,4 +46,8 @@ public interface EventRegistrationRepository extends ReactiveCrudRepository<Even
      */
     @Query("SELECT user_id FROM event_registrations WHERE event_id = :eventId")
     Flux<Long> findUserIdsByEventId(Long eventId);
+
+    /** TWIST 09 : Confirmer la présence physique */
+    @Query("UPDATE event_registrations SET is_attended = true WHERE event_id = :eventId AND user_id = :userId")
+    Mono<Void> confirmAttendance(Long eventId, Long userId);
 }

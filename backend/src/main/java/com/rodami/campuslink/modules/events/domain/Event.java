@@ -47,6 +47,9 @@ public class Event {
     @Column("organisateur_id")
     private Long organisateurId;
 
+    @Column("association_id")
+    private Long associationId;
+
     /**
      * Statut du cycle de vie de l'événement.
      * DRAFT → validé par BDE → PUBLISHED → (auto) PAST | CANCELLED

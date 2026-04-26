@@ -268,17 +268,17 @@ public class ProfileService {
     /**
      * Ajoute un intérêt de manière implicite (par l'usage, sans formulaire).
      * Appelé par d'autres modules quand l'utilisateur interagit avec un contenu tagué.
-     * Exemple : l'utilisateur s'inscrit à un événement "Sport" → on ajoute "Sport" à ses intérêts.
+     * ✅ TWIST 09 : Track le sourceEventId pour permettre le cleanup systémique.
      */
-    public Mono<Void> recordImplicitInterest(Long userId, String tag, String category) {
+    public Mono<Void> recordImplicitInterest(Long userId, String tag, String category, Long sourceEventId) {
         return interestRepository.findByUserId(userId)
             .collectList()
             .flatMap(existingInterests -> {
-                // ✅ TWIST 02 : vérifier avant d'accéder à la liste
-                boolean alreadyExists = existingInterests != null && !existingInterests.isEmpty()
-                    && existingInterests.stream().anyMatch(i -> tag.equals(i.getTag()));
+                boolean alreadyExistsForThisSource = existingInterests != null && !existingInterests.isEmpty()
+                    && existingInterests.stream().anyMatch(i -> tag.equals(i.getTag()) && 
+                        (sourceEventId == null ? i.getSourceEventId() == null : sourceEventId.equals(i.getSourceEventId())));
 
-                if (alreadyExists) {
+                if (alreadyExistsForThisSource) {
                     return Mono.empty();
                 }
 
@@ -286,6 +286,7 @@ public class ProfileService {
                     .userId(userId)
                     .tag(tag)
                     .category(category)
+                    .sourceEventId(sourceEventId)
                     .createdAt(Instant.now())
                     .build();
 

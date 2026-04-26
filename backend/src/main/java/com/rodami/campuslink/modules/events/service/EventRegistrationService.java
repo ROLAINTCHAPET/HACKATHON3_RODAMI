@@ -21,6 +21,8 @@ public class EventRegistrationService {
     private final EventRegistrationRepository registrationRepository;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
+    private final com.rodami.campuslink.profile.repository.ConnectionRepository connectionRepository;
+    private final com.rodami.campuslink.profile.service.ProfileService profileService;
 
     // ----------------------------------------------------------------
     // S'inscrire à un événement
@@ -130,5 +132,37 @@ public class EventRegistrationService {
                         .userNom(t.getT2())
                         .registeredAt(reg.getRegisteredAt())
                         .build());
+    }
+
+    /**
+     * TWIST 09 : Confirmer la présence réelle à un événement.
+     * Cette action transforme un "clic" (inscription) en "interaction réelle".
+     */
+    @Transactional
+    public Mono<Void> confirmAttendance(Long eventId, Long userId) {
+        log.info("[TWIST 09] Confirmation présence: userId={} → eventId={}", userId, eventId);
+        
+        return registrationRepository.confirmAttendance(eventId, userId)
+                .then(
+                    // Effet non-local : On booste le reality_score de l'utilisateur avec ses co-participants
+                    registrationRepository.findUserIdsByEventId(eventId)
+                        .filter(otherId -> !otherId.equals(userId))
+                        .flatMap(otherId -> 
+                            // On augmente le score de 0.4 pour chaque co-participant (réalisme partagé)
+                            connectionRepository.findBetweenUsers(userId, otherId)
+                                .flatMap(conn -> {
+                                    double newScore = (conn.getRealityScore() != null ? conn.getRealityScore() : 0.1) + 0.4;
+                                    return connectionRepository.updateRealityScore(userId, otherId, newScore);
+                                })
+                        ).then()
+                )
+                .then(
+                    // TWIST 09 : On enregistre l'intérêt seulement si la présence est CONFIRMÉE (interaction réelle)
+                    eventRepository.findById(eventId)
+                        .flatMap(event -> {
+                            String tag = event.getTitre(); // Simplification : le titre devient un tag
+                            return profileService.recordImplicitInterest(userId, tag, "Event", eventId);
+                        })
+                );
     }
 }

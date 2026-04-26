@@ -76,11 +76,30 @@ public interface ConnectionRepository extends ReactiveCrudRepository<Connection,
     @Query("SELECT * FROM connections WHERE source_event_id = :eventId")
     Flux<Connection> findBySourceEventId(Long eventId);
 
-    /** Nombre de connexions acceptées d'un utilisateur */
     @Query("""
         SELECT COUNT(*) FROM connections
         WHERE (requester_id = :userId OR receiver_id = :userId)
           AND status = 'ACCEPTED'
         """)
     Mono<Long> countAcceptedConnectionsByUserId(Long userId);
+
+    /** TWIST 09 : Mise à jour du score de réalité */
+    @Query("""
+        UPDATE connections 
+        SET reality_score = LEAST(1.0, :score), 
+            interaction_count = interaction_count + 1, 
+            updated_at = NOW() 
+        WHERE (requester_id = :u1 AND receiver_id = :u2) 
+           OR (requester_id = :u2 AND receiver_id = :u1)
+        """)
+    Mono<Void> updateRealityScore(Long u1, Long u2, Double score);
+
+    /** TWIST 09 : Pénalité systémique (dépendance destructive) */
+    @Query("""
+        UPDATE connections 
+        SET reality_score = reality_score * 0.5,
+            updated_at = NOW()
+        WHERE source_event_id = :eventId
+        """)
+    Mono<Void> penalizeConnectionsForEvent(Long eventId);
 }
