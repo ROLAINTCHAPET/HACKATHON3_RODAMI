@@ -92,7 +92,7 @@ export const SuggestionCard = ({
       <div className="p-5 space-y-4">
         <div>
           <div className="flex items-center justify-between mb-1">
-          <h3 className={`text-lg md:text-xl font-bold leading-tight ${isDecayed ? "text-rose/80 italic" : isAnonymous ? "text-text-secondary" : "text-foreground"}`}>
+          <h3 className={`text-base md:text-xl font-bold leading-tight line-clamp-1 ${isDecayed ? "text-rose/80 italic" : isAnonymous ? "text-text-secondary" : "text-foreground"}`}>
               {isDecayed ? "[OBSOLETE_DATA]" : isAnonymous ? "ID Étudiant [MISSING]" : title}
             </h3>
             {isDecayed && <AlertTriangle className="h-4 w-4 text-rose shrink-0" />}
@@ -132,12 +132,12 @@ export const SuggestionCard = ({
         </div>
 
         {justification && (
-          <div className="flex items-start gap-2 p-3 rounded-xl bg-white/5 border border-white/10 mt-2">
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-white/5 border border-white/10 mt-2 hover:bg-white/10 transition-colors">
             <ShieldCheck className="h-3 w-3 text-teal mt-0.5 shrink-0" />
-            <div>
+            <div className="overflow-hidden">
               <div className="text-[8px] font-black uppercase tracking-widest text-teal/70 mb-1">Audit RF-18</div>
-              <p className="text-[10px] text-text-secondary leading-tight italic">
-                « {justification.replace("Twist-02", "Inférence de Substitution").replace("Twist-05", "Entropie de Données")} »
+              <p className="text-[10px] text-text-secondary leading-tight italic line-clamp-2">
+                « {justification.replace("Twist-02", "Inférence").replace("Twist-05", "Entropie")} »
               </p>
             </div>
           </div>

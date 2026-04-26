@@ -7,7 +7,7 @@ import { Users, Calendar, ArrowRight, Sparkles } from "lucide-react";
 
 export const Hero = () => {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden mesh-gradient pt-28 md:pt-32">
+    <section className="relative min-h-screen flex items-center overflow-hidden mesh-gradient pt-24 md:pt-32">
       {/* Animated Background Orbs */}
       <div className="absolute top-20 left-[10%] w-72 h-72 bg-primary/20 rounded-full blur-[120px] animate-pulse-glow" />
       <div className="absolute bottom-20 right-[10%] w-96 h-96 bg-teal/15 rounded-full blur-[150px] animate-pulse-glow delay-200" />
@@ -59,7 +59,7 @@ export const Hero = () => {
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center lg:items-start gap-4 pt-2 animate-fade-in-up delay-300">
+            <div className="flex flex-col sm:flex-row items-center lg:items-start gap-4 pt-4 md:pt-2 animate-fade-in-up delay-300 w-full lg:w-auto">
               <Button
                 size="lg"
                 className="w-full sm:w-auto glow-primary group text-base"

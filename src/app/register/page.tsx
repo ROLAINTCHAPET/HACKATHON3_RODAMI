@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, ArrowRight, User, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, ArrowRight, User, Shield, Loader2 } from "lucide-react";
 import { AuthService } from "@/lib/custom/AuthService";
 import { useRouter } from "next/navigation";
 
@@ -13,6 +13,7 @@ export default function RegisterPage() {
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("STUDENT");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -31,7 +32,8 @@ export default function RegisterPage() {
       if (user) {
         localStorage.setItem("userId", user.uid);
         localStorage.setItem("userName", email.split('@')[0]);
-        router.push("/discover");
+        localStorage.setItem("userRole", role);
+        router.push("/onboarding");
       }
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue lors de l'inscription.");
@@ -73,7 +75,38 @@ export default function RegisterPage() {
               {error}
             </div>
           )}
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Role Selector */}
+            <div className="space-y-3">
+              <label className="text-[11px] font-black uppercase tracking-widest text-text-secondary ml-1">Type de Profil</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole("STUDENT")}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                    role === "STUDENT" 
+                      ? "bg-primary/20 border-primary shadow-lg shadow-primary/10" 
+                      : "glass border-glass-border text-text-secondary hover:border-primary/30"
+                  }`}
+                >
+                  <User className={`h-5 w-5 ${role === "STUDENT" ? "text-primary-light" : ""}`} />
+                  <span className="text-[10px] font-black uppercase">Étudiant</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("BDE")}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                    role === "BDE" 
+                      ? "bg-teal/20 border-teal shadow-lg shadow-teal/5" 
+                      : "glass border-glass-border text-text-secondary hover:border-teal/30"
+                  }`}
+                >
+                  <Shield className={`h-5 w-5 ${role === "BDE" ? "text-teal" : ""}`} />
+                  <span className="text-[10px] font-black uppercase">BDE / Admin</span>
+                </button>
+              </div>
+            </div>
+
             {/* ID Field */}
             <div className="space-y-2">
               <label className="text-[11px] font-black uppercase tracking-widest text-text-secondary ml-1">Identifiant Institutionnel</label>

@@ -18,8 +18,6 @@ export class AuthService {
       request.email!, 
       request.password!
     );
-    const token = await getIdToken(userCredential.user);
-    OpenAPI.TOKEN = token;
     return userCredential.user;
   }
 
@@ -30,8 +28,6 @@ export class AuthService {
         request.email!, 
         request.password!
       );
-      const token = await getIdToken(userCredential.user);
-      OpenAPI.TOKEN = token;
       return userCredential.user;
     } catch (error) {
       console.error("Firebase Registration Error:", error);
@@ -41,27 +37,44 @@ export class AuthService {
 
   static async logout() {
     await signOut(auth);
-    OpenAPI.TOKEN = undefined;
   }
 
   static onAuthChange(callback: (user: User | null) => void) {
     return onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const token = await getIdToken(user);
-        OpenAPI.TOKEN = token;
-      } else {
-        OpenAPI.TOKEN = undefined;
-      }
       callback(user);
     });
   }
 
-  static async getFreshToken() {
+  static async getFreshToken(): Promise<string | null> {
+    // If user is already there, return token with force refresh
     if (auth.currentUser) {
-      const token = await getIdToken(auth.currentUser, true);
-      OpenAPI.TOKEN = token;
-      return token;
+      try {
+        return await getIdToken(auth.currentUser, true);
+      } catch (e) {
+        console.error("Token refresh failed:", e);
+      }
     }
-    return null;
+
+    // Otherwise, wait for auth to settle (max 2 seconds)
+    return new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        unsubscribe();
+        if (user) {
+          try {
+            const token = await getIdToken(user, true);
+            resolve(token);
+          } catch (e) {
+            console.error("Token retrieval failed:", e);
+            resolve(null);
+          }
+        } else {
+          resolve(null);
+        }
+      });
+      setTimeout(() => {
+        unsubscribe();
+        resolve(null);
+      }, 2000);
+    });
   }
 }

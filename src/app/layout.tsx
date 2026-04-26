@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   description: "SchoolLink — Plateforme de mise en relation contextuelle via les événements du campus.",
 };
 
+import { AuthProvider } from "@/components/auth/AuthProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,7 +31,11 @@ export default function RootLayout({
       lang="fr"
       className={`${montserrat.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-inter">{children}</body>
+      <body className="min-h-full flex flex-col font-inter">
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }

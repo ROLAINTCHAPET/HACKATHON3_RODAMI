@@ -24,7 +24,12 @@ export const OpenAPI: OpenAPIConfig = {
     VERSION: '1.0.0',
     WITH_CREDENTIALS: false,
     CREDENTIALS: 'include',
-    TOKEN: undefined,
+    TOKEN: async () => {
+        // Dynamic resolver from our custom AuthService
+        // This will be called by src/lib/core/request.ts for every request
+        const { AuthService } = await import('../custom/AuthService');
+        return await AuthService.getFreshToken() || '';
+    },
     USERNAME: undefined,
     PASSWORD: undefined,
     HEADERS: undefined,

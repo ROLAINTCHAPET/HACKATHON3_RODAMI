@@ -32,12 +32,14 @@ export default function CirclePage() {
     <div className="space-y-12 pb-20">
       {/* Back Button */}
       <div className="mb-4">
+      <div className="mb-2 md:mb-4">
         <Link href="/discover">
-          <Button variant="ghost" size="sm" className="group gap-2 text-text-secondary hover:text-primary p-0 h-auto">
+          <Button variant="ghost" size="sm" className="group gap-2 text-text-secondary hover:text-primary p-2 md:p-0 h-auto">
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            Retour au Hub
+            <span className="text-xs md:text-sm">Retour au Hub</span>
           </Button>
         </Link>
+      </div>
       </div>
 
       {activeAudit && (
@@ -56,7 +58,7 @@ export default function CirclePage() {
           <Users className="h-3 w-3" />
           <span>Couche Sociale Active</span>
         </div>
-        <h1 className="text-4xl font-black tracking-tight">
+        <h1 className="text-3xl md:text-4xl font-black tracking-tight">
           Mon <span className="text-gradient">Cercle Social</span>
         </h1>
         <p className="text-text-secondary">Cliquez sur une carte pour auditer l'origine du lien.</p>

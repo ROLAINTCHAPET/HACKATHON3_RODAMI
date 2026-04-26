@@ -26,8 +26,8 @@ export const RelationAudit = ({
   onClose,
 }: RelationAuditProps) => {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-background/60 backdrop-blur-xl animate-in fade-in duration-300">
-      <div className="glass-card w-full max-w-2xl rounded-[2rem] md:rounded-[2.5rem] border border-glass-border p-6 md:p-12 shadow-2xl relative overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 md:p-8 overflow-y-auto bg-background/60 backdrop-blur-xl animate-in fade-in duration-300 custom-scrollbar">
+      <div className="glass-card w-full max-w-2xl rounded-[2rem] md:rounded-[3rem] border border-glass-border p-6 md:p-12 shadow-2xl relative my-auto animate-in zoom-in-95 duration-500">
         {/* Background Mesh */}
         <div className="absolute -top-24 -right-24 h-64 w-64 bg-primary/10 blur-[100px] rounded-full" />
         
@@ -64,17 +64,21 @@ export const RelationAudit = ({
 
           {/* Audit Steps */}
           <div className="space-y-6">
-            <h3 className="text-xs font-black uppercase tracking-widest text-text-secondary flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Historique des Décisions Algorithmiques
-            </h3>
-            <div className="space-y-6 relative before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-px before:bg-glass-border">
+            <div className="flex items-center justify-between">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-secondary flex items-center gap-3">
+                    <FileText className="h-4 w-4" />
+                    Journal de Transparence
+                </h3>
+                <span className="text-[10px] bg-primary/10 text-primary-light px-2 py-0.5 rounded border border-primary/20 font-black uppercase tracking-widest animate-pulse">Audit en direct</span>
+            </div>
+            
+            <div className="space-y-8 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-[2px] before:bg-gradient-to-b before:from-primary/50 before:via-glass-border before:to-transparent">
               {auditTrail.map((step, i) => (
-                <div key={i} className="relative pl-10">
-                  <div className="absolute left-0 top-1 h-5 w-5 rounded-full bg-background border-2 border-primary flex items-center justify-center z-10">
-                    <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <div key={i} className="relative pl-12 group">
+                  <div className="absolute left-0 top-1 h-6 w-6 rounded-full bg-background border-2 border-primary flex items-center justify-center z-10 transition-transform group-hover:scale-125 duration-300 shadow-lg shadow-primary/20">
+                    <div className="h-2 w-2 rounded-full bg-primary" />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono text-text-secondary">{step.time}</span>
                       <span className="text-[10px] font-black text-primary-light px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20">

@@ -5,35 +5,36 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, ChevronRight, Bell, Sparkles, UserPlus, LogOut, ShieldCheck } from "lucide-react";
+import { Menu, X, Bell, Sparkles, UserPlus, LogOut, ShieldCheck } from "lucide-react";
+
+import { AuthService } from "@/lib/custom/AuthService";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export const Header = () => {
+  const { user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const isDashboard = pathname.startsWith("/discover");
+  const isLoggedIn = !!user;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     
-    // Check auth status
-    const userId = localStorage.getItem("userId");
+    // Role still comes from localStorage for now or profile
     const role = localStorage.getItem("userRole");
-    setIsLoggedIn(!!userId);
     setUserRole(role);
 
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [pathname]);
+  }, [pathname, user]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("userId");
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    await AuthService.logout();
     router.push("/");
   };
 
@@ -49,8 +50,8 @@ export const Header = () => {
         scrolled || isDashboard ? "bg-background/80 backdrop-blur-md border-b border-glass-border py-4" : "bg-transparent py-6"
       }`}
     >
-      <div className="container mx-auto px-6 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 group">
+      <div className="container mx-auto px-4 lg:px-6 flex items-center justify-between">
+        <Link href={isLoggedIn ? "/discover" : "/"} className="flex items-center gap-3 group">
           <div className="relative">
             <Image
               src="/icon.png"
@@ -67,25 +68,37 @@ export const Header = () => {
           </span>
         </Link>
 
-        {/* Desktop Navigation - Hidden if logged in or on Dashboard */}
-        {!isLoggedIn && !isDashboard && (
-          <nav className="hidden lg:flex items-center gap-8">
-            {[
-              { href: "/discover", label: "Découvrir" },
-              { href: "#features", label: "Fonctionnalités" },
-              { href: "#community", label: "Communauté" },
-            ].map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="relative text-sm font-medium text-text-secondary hover:text-foreground transition-colors duration-300 group"
-              >
-                {link.label}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary rounded-full group-hover:w-full transition-all duration-300" />
-              </Link>
-            ))}
-          </nav>
-        )}
+        {/* Desktop Navigation */}
+        <nav className="hidden lg:flex items-center gap-8">
+          {!isDashboard ? (
+            <>
+              {isLoggedIn && (
+                <Link
+                  href="/discover"
+                  className="relative text-sm font-bold text-primary-light hover:text-primary transition-colors duration-300 group"
+                >
+                  Dashboard
+                  <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary rounded-full" />
+                </Link>
+              )}
+              {[
+                { href: "#features", label: "Fonctionnalités" },
+                { href: "#community", label: "Communauté" },
+              ].map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="relative text-sm font-medium text-text-secondary hover:text-foreground transition-colors duration-300 group"
+                >
+                  {link.label}
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary rounded-full group-hover:w-full transition-all duration-300" />
+                </Link>
+              ))}
+            </>
+          ) : (
+             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-text-secondary/50">Flux Algorithmique Actif</div>
+          )}
+        </nav>
 
         <div className="hidden lg:flex items-center gap-4 pl-4 border-l border-glass-border ml-2">
           {isLoggedIn ? (
@@ -139,8 +152,8 @@ export const Header = () => {
                 )}
               </div>
 
-              {/* Admin Link */}
-              {userRole === "ADMIN" && (
+              {/* Admin/BDE Link */}
+              {(userRole === "ADMIN" || userRole === "BDE") && (
                 <Link href="/admin/governance">
                   <Button
                     variant="ghost" 
@@ -158,7 +171,7 @@ export const Header = () => {
                 variant="ghost" 
                 size="sm"
                 onClick={handleLogout}
-                className="text-text-secondary hover:text-error gap-2 px-4 hover:bg-error/10"
+                className="text-error border border-error/20 hover:bg-error/10 gap-2 px-4"
               >
                 <LogOut className="h-4 w-4" />
                 Déconnexion
@@ -196,24 +209,30 @@ export const Header = () => {
       {/* Mobile Navigation */}
       {isMenuOpen && (
         <div className="md:hidden glass border-t border-glass-border px-4 py-6 space-y-6">
-          {!isLoggedIn && (
-            <nav className="flex flex-col gap-4">
-              {[
-                { label: "Découvrir", href: "/discover" },
-                { label: "Fonctionnalités", href: "#features" },
-                { label: "Communauté", href: "#community" },
-              ].map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="text-lg font-medium text-text-secondary hover:text-foreground transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-          )}
+          <nav className="flex flex-col gap-4">
+            {isLoggedIn && (
+              <Link
+                href="/discover"
+                className="text-lg font-bold text-primary-light hover:text-primary transition-colors"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Dashboard
+              </Link>
+            )}
+            {[
+              { label: "Fonctionnalités", href: "#features" },
+              { label: "Communauté", href: "#community" },
+            ].map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="text-lg font-medium text-text-secondary hover:text-foreground transition-colors"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
           {isLoggedIn && (
             <div className="pt-2">
               <h3 className="text-xs font-black uppercase tracking-widest text-text-secondary mb-4">Navigation Dashboard</h3>

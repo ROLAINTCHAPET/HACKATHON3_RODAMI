@@ -12,16 +12,28 @@ import { ProfileControllerService } from "@/lib/services/ProfileControllerServic
 import { UserProfile } from "@/lib/models/UserProfile";
 import { EventResponse } from "@/lib/models/EventResponse";
 import { mapUserToCardProps, mapEventToCardProps } from "@/lib/utils/mapping";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { RelationAudit } from "@/components/discover/RelationAudit";
 
 export default function DiscoverPage() {
+  const { user } = useAuth();
   const [people, setPeople] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<EventResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeAudit, setActiveAudit] = useState<any>(null);
+
+  const mockAuditTrail = [
+    { time: "Aujourd'hui", action: "Inférence par Carence de Données", rule: "Twist-02", impact: "Génération d'Identité Substitution" },
+    { time: "Aujourd'hui", action: "Score de Proximité Campus", rule: "Module 4", impact: "Score +35%" },
+    { time: "Hier", action: "Détection de Co-localisation", rule: "RF-14", impact: "Score +15%" },
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!user) return; // Wait for user to be ready
+      
       setIsLoading(true);
-      const userId = localStorage.getItem("userId") || "1";
+      const userId = user.uid;
       
       try {
         let recs: UserProfile[] = [];
@@ -40,11 +52,8 @@ export default function DiscoverPage() {
 
         // Twist 03: Cold Start logic
         if (recs.length === 0 && discovery.length === 0) {
-          console.log("Twist 03: Cold Start triggered (0 connections). Fetching interest-based suggestions...");
           const coldStart = await ProfileControllerService.getColdStartSuggestions();
-          // Map cold start suggestions (Record structure) to UserProfile array
-          // The API returns Record<string, Record<string, any>>
-          const coldStartUsers: UserProfile[] = Object.values(coldStart)
+          const coldStartUsers: UserProfile[] = Object.values(coldStart || {})
             .flatMap(group => Object.values(group)) as UserProfile[];
           setPeople(coldStartUsers);
         } else {
@@ -61,16 +70,16 @@ export default function DiscoverPage() {
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   return (
     <div className="space-y-12">
       {/* Back Button (Local for mobile/UX) */}
-      <div className="mb-4">
+      <div className="mb-2 md:mb-4">
         <Link href="/">
-          <Button variant="ghost" size="sm" className="group gap-2 text-text-secondary hover:text-primary p-0 h-auto">
+          <Button variant="ghost" size="sm" className="group gap-2 text-text-secondary hover:text-primary p-2 md:p-0 h-auto">
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            Quitter le Hub
+            <span className="text-xs md:text-sm">Quitter le Hub</span>
           </Button>
         </Link>
       </div>
@@ -104,19 +113,20 @@ export default function DiscoverPage() {
       </div>
 
       {/* Social Warning (Anomalie Hint) */}
-      <div className="bg-error/5 border border-error/20 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 animate-pulse-glow">
-        <div className="h-12 w-12 rounded-full bg-error/20 flex items-center justify-center shrink-0">
-          <ShieldAlert className="h-6 w-6 text-error" />
+      <div className="bg-error/5 border border-error/20 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row items-center gap-6 animate-pulse-glow">
+        <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-error/20 flex items-center justify-center shrink-0">
+          <ShieldAlert className="h-5 w-5 md:h-6 md:w-6 text-error" />
         </div>
-        <div className="space-y-1 text-center md:text-left">
-          <h3 className="font-bold text-foreground italic">Projection de Dépendance Destructive</h3>
-          <p className="text-sm text-text-secondary">
-            L'anonymat massif (60%) et la <span className="text-purple-400 font-bold underline">Neutralité de l'Isolement</span> forcent le système à générer des <span className="text-error font-bold">Identités Fantômes</span>. 
+        <div className="space-y-1 text-center md:text-left overflow-hidden">
+          <h3 className="font-bold text-sm md:text-base text-foreground italic">Projection de Dépendance Destructive</h3>
+          <p className="text-[10px] md:text-sm text-text-secondary leading-tight">
+            Anonymat massif (60%) et <span className="text-purple-400 font-bold underline">Neutralité de l'Isolement</span>. 
+            Génération d'<span className="text-error font-bold">Identités Fantômes</span>. 
           </p>
         </div>
-        <div className="md:ml-auto text-right">
-          <div className="text-xs text-text-secondary uppercase font-bold text-error">Contamination en cours</div>
-          <div className="text-2xl font-black text-rose animate-pulse">CRITIQUE</div>
+        <div className="md:ml-auto text-center md:text-right w-full md:w-auto pt-4 md:pt-0 border-t md:border-0 border-error/10">
+          <div className="text-[8px] md:text-xs text-text-secondary uppercase font-bold text-error">Contamination active</div>
+          <div className="text-xl md:text-2xl font-black text-rose animate-pulse">CRITIQUE</div>
         </div>
       </div>
 
@@ -137,12 +147,17 @@ export default function DiscoverPage() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {people.map((person, idx) => (
-              <SuggestionCard
-                key={person.id || idx}
-                type="person"
-                image={person.email?.includes("redacted") ? "" : "/students-black.png"}
-                {...mapUserToCardProps(person)}
-              />
+              <div 
+                key={person.id || idx} 
+                className="cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                onClick={() => setActiveAudit({ ...person, title: person.email?.includes("redacted") ? "Utilisateur Anonyme" : `${person.prenom} ${person.nom}` })}
+              >
+                <SuggestionCard
+                  type="person"
+                  image={person.email?.includes("redacted") ? "" : "/students-black.png"}
+                  {...mapUserToCardProps(person)}
+                />
+              </div>
             ))}
             {people.length === 0 && (
               <div className="col-span-full py-10 text-center glass rounded-2xl border border-glass-border">
@@ -184,6 +199,16 @@ export default function DiscoverPage() {
           </div>
         )}
       </section>
+
+      {activeAudit && (
+        <RelationAudit 
+          userName={activeAudit.title || activeAudit.name || "Utilisateur"}
+          triggerEvent="Recommandation Algorithmique"
+          matchScore={activeAudit.score || activeAudit.matchScore || 0}
+          auditTrail={mockAuditTrail}
+          onClose={() => setActiveAudit(null)}
+        />
+      )}
     </div>
   );
 }

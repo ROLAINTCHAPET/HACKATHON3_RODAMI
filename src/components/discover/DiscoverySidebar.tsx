@@ -106,48 +106,61 @@ export const DiscoverySidebar = () => {
             </p>
           </div>
 
-          <div className="pt-4 mt-4 border-t border-glass-border space-y-4">
-            <div className="flex items-center justify-between text-[10px] font-black uppercase text-rose-light">
-              <span>TWIST-06 : Neutralité</span>
-              <span className="text-rose animate-pulse">ACTIF</span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold text-text-secondary">
-                <span>Contamination Fantôme</span>
-                <span className="text-rose">{contamination.toFixed(0)}%</span>
+          <div className="pt-6 mt-6 border-t border-glass-border space-y-8">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-rose-light/80">
+                <span className="flex items-center gap-2">
+                  <ShieldAlert className="h-3 w-3 animate-pulse" />
+                  Neutralité Sociale
+                </span>
+                <span className="text-rose animate-pulse">ACTIF</span>
               </div>
-              <div className="h-1 w-full bg-rose/10 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-rose to-purple-600 transition-all duration-[3000ms]"
-                  style={{ width: `${contamination}%` }}
-                />
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold text-text-secondary">
+                  <span>Contamination Fantôme</span>
+                  <span className="text-rose">{contamination.toFixed(0)}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-rose/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-rose to-purple-600 transition-all duration-[3000ms]"
+                    style={{ width: `${contamination}%` }}
+                  />
+                </div>
               </div>
+              <p className="text-[9px] text-text-secondary italic leading-tight opacity-70">
+                L'impossibilité de cibler l'isolement génère des dépendances destructrices invisibles.
+              </p>
             </div>
-            <p className="text-[9px] text-text-secondary italic leading-tight">
-              L'impossibilité de cibler l'isolement génère des dépendances destructrices invisibles.
-            </p>
-            <div className="flex items-center justify-between text-[10px] font-black uppercase text-teal">
-              <span>TWIST-07 : Bascule Semestre</span>
-              <span className="text-teal animate-pulse">EN COURS</span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold text-text-secondary">
-                <span>Recalibrage Cohortes</span>
-                <span className="text-teal">{semesterFlip}%</span>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-teal">
+                <span className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 animate-bounce" />
+                  Recalibrage Semestriel
+                </span>
+                <span className="text-teal animate-pulse">EN COURS</span>
               </div>
-              <div className="h-1 w-full bg-teal/10 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-teal transition-all duration-[4000ms] ease-in-out"
-                  style={{ width: `${semesterFlip}%` }}
-                />
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold text-text-secondary">
+                  <span>Inertie des Cohortes</span>
+                  <span className="text-teal">{semesterFlip}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-teal/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-teal transition-all duration-[4000ms] ease-in-out shadow-[0_0_10px_rgba(45,212,191,0.3)]"
+                    style={{ width: `${semesterFlip}%` }}
+                  />
+                </div>
               </div>
+              <p className="text-[9px] text-text-secondary italic leading-tight opacity-70">
+                Toutes les cohortes, salles et rythmes basculent. Le contexte de match devient obsolète.
+              </p>
             </div>
-            <p className="text-[9px] text-text-secondary italic leading-tight">
-              Toutes les cohortes, salles et rythmes basculent. Le contexte de match devient obsolète.
-            </p>
-            <Link href="/admin/governance" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors group">
-              <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-xs font-black uppercase tracking-widest text-text-secondary group-hover:text-primary transition-colors">Gouvernance BDE</span>
+
+            <Link href="/admin/governance" className="flex items-center justify-center gap-3 px-4 py-4 rounded-2xl glass border border-primary/20 hover:bg-primary/5 transition-all group overflow-hidden relative">
+              <div className="absolute inset-0 bg-primary/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+              <div className="h-2 w-2 rounded-full bg-primary animate-pulse relative z-10" />
+              <span className="text-xs font-black uppercase tracking-[0.2em] text-text-secondary group-hover:text-primary transition-colors relative z-10">Gouvernance BDE</span>
             </Link>
           </div>
         </div>

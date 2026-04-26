@@ -30,6 +30,7 @@
   --color-text-secondary: var(--text-secondary);
   --color-glass: var(--glass);
   --color-glass-border: var(--glass-border);
+  --color-error: hsl(0, 84%, 60%);
 
   --font-montserrat: "Montserrat", sans-serif;
   --font-inter: "Inter", sans-serif;
@@ -167,13 +168,45 @@ h1, h2, h3, h4, h5, h6 {
     radial-gradient(ellipse at 50% 50%, hsla(240, 15%, 5%, 1) 0%, hsla(240, 15%, 5%, 1) 100%);
 }
 
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.05); }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s ease-in-out infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 5s ease-in-out infinite;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsla(270, 80%, 55%, 0.2);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsla(270, 80%, 55%, 0.4);
+}
+
 /* ── Image Treatments ────────────────────────────── */
 .image-mask {
   mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
 }
 
-/* ── Scrollbar ───────────────────────────────────── */
+/* ── Scrollbar (Global) ─────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
 }
