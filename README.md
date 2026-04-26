@@ -1,6 +1,6 @@
-# 🌐 CampusLink
+# 🌐 SchoolLink
 
-**CampusLink** est une plateforme de mise en relation contextuelle conçue pour dynamiser la vie estudiantine. Elle permet aux étudiants de se connecter en fonction de leurs intérêts, de leurs filières et de participer à des événements organisés par les associations (BDE) ou l'administration.
+**SchoolLink** est une plateforme de mise en relation contextuelle conçue pour dynamiser la vie estudiantine. Elle permet aux étudiants de se connecter en fonction de leurs intérêts, de leurs filières et de participer à des événements organisés par les associations (BDE) ou l'administration.
 
 ---
 
